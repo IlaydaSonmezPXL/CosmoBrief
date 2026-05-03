@@ -111,6 +111,18 @@ Completed tasks, moved from TODO.md after verification.
 
 ---
 
+## Removal: Bookmark / Dismiss (2026-05-03)
+
+- [x] `backend/app/schemas/article.py` — `ArticleState` reduced to `"new" | "read" | "explained"`; removed `ArticleStateTransitionRequest` and `ArticleStateTransitionResponse` schemas
+- [x] `backend/app/services/state_machine.py` — removed `saved` and `dismissed` transitions; `VALID_TRANSITIONS` now only contains `(None, "read")` and `("read", "explained")`
+- [x] `backend/app/routers/articles.py` — removed `POST /articles/{id}/state` endpoint and its imports; `StateFilter` type narrowed to match new states
+- [x] `backend/app/services/explanation_service.py` — removed `{"saved", "dismissed"}` guard; state always advances to `"explained"` when a row exists
+- [x] `frontend/src/api/articles.ts` — `ArticleState` type narrowed; `transitionState` function removed
+- [x] `frontend/src/pages/Feed.tsx` — removed "saved" and "dismissed" from `STATE_OPTIONS` and `STATE_CLASS`; removed dismissed-filter logic
+- [x] `frontend/src/pages/ArticleDetail.tsx` — removed `handleTransition`, `canSave`/`canDismiss` logic, and the action bar
+
+---
+
 ## Feature: Reading Map expandable topics (2026-05-03)
 
 - [x] `backend/app/schemas/article.py` — added `ReadingMapArticle` schema (article_id, title, news_site, published_at); extended `ReadingMapTopic` with `articles: List[ReadingMapArticle]`

@@ -66,8 +66,6 @@ Disabled state: add `disabled` prop — CSS handles opacity + cursor.
 <span className="badge badge-new">new</span>
 <span className="badge badge-read">read</span>
 <span className="badge badge-explained">explained</span>
-<span className="badge badge-saved">saved</span>
-<span className="badge badge-dismissed">dismissed</span>
 ```
 
 ---

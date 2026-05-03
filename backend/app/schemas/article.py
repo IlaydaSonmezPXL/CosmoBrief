@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-ArticleState = Literal["new", "read", "explained", "saved", "dismissed"]
+ArticleState = Literal["new", "read", "explained"]
 Freshness = Literal["fresh", "aging", "archived"]
 ExplanationMode = Literal["eli12", "caveman", "scientist", "story"]
 RatingValue = Literal["up", "down"]
@@ -39,16 +39,6 @@ class ExplanationStatus(BaseModel):
 class ArticleDetailResponse(ArticleSummary):
     explanations: Dict[ExplanationMode, ExplanationStatus]
 
-
-class ArticleStateTransitionRequest(BaseModel):
-    target_state: Literal["saved", "dismissed"]
-
-
-class ArticleStateTransitionResponse(BaseModel):
-    article_id: int
-    previous_state: ArticleState
-    new_state: ArticleState
-    transitioned_at: datetime
 
 
 class ReadingMapArticle(BaseModel):

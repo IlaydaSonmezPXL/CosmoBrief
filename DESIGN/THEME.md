@@ -17,7 +17,7 @@ Space/astronomy dark theme. All tokens live in `frontend/src/index.css` as CSS c
 | `--accent` | `#4f9cf9` | Primary CTA, links, active states |
 | `--accent-purple` | `#8b5cf6` | Secondary accent, "read" state badge |
 | `--accent-cyan` | `#22d3ee` | "fresh" badge, "explained" state badge |
-| `--accent-gold` | `#f59e0b` | "aging" badge, "saved" state badge |
+| `--accent-gold` | `#f59e0b` | "aging" badge |
 | `--text` | `#dde3f0` | Primary text |
 | `--text-sec` | `#7e8fa8` | Secondary / body text |
 | `--text-muted` | `#3f4e66` | De-emphasized labels, metadata |
@@ -67,8 +67,6 @@ Badges use translucent backgrounds — `rgba(r,g,b, 0.12)` fill + `rgba(r,g,b, 0
 | `.badge-new` | blue (`--accent`) |
 | `.badge-read` | purple (`--accent-purple`) |
 | `.badge-explained` | cyan (`--accent-cyan`) |
-| `.badge-saved` | gold (`--accent-gold`) |
-| `.badge-dismissed` | dim gray |
 
 ---
 

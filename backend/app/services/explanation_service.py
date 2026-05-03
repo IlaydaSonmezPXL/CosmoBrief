@@ -67,7 +67,7 @@ async def get_or_generate_explanation(
                 updated_at=now,
             )
         )
-    elif state_row.state not in {"saved", "dismissed"}:
+    else:
         state_row.state = "explained"
         state_row.updated_at = now
 

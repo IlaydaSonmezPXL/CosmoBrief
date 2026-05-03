@@ -1,6 +1,6 @@
 import apiClient from "./client";
 
-export type ArticleState = "new" | "read" | "explained" | "saved" | "dismissed";
+export type ArticleState = "new" | "read" | "explained";
 export type Freshness = "fresh" | "aging" | "archived";
 
 export interface ExplanationStatus {
@@ -46,6 +46,3 @@ export function getArticle(articleId: number) {
   return apiClient.get<ArticleDetail>(`/articles/${articleId}`);
 }
 
-export function transitionState(articleId: number, targetState: "saved" | "dismissed") {
-  return apiClient.post(`/articles/${articleId}/state`, { target_state: targetState });
-}

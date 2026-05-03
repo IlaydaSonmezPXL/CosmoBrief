@@ -5,12 +5,6 @@ ArticleState = Optional[str]
 VALID_TRANSITIONS = {
     (None, "read"),
     ("read", "explained"),
-    ("read", "saved"),
-    ("read", "dismissed"),
-    ("explained", "saved"),
-    ("explained", "dismissed"),
-    ("saved", "dismissed"),
-    ("dismissed", "saved"),
 }
 
 

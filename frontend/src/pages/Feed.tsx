@@ -8,8 +8,6 @@ const STATE_OPTIONS: Array<{ label: string; value: string }> = [
   { label: "New", value: "new" },
   { label: "Read", value: "read" },
   { label: "Explained", value: "explained" },
-  { label: "Saved", value: "saved" },
-  { label: "Dismissed", value: "dismissed" },
 ];
 
 const FRESHNESS_OPTIONS: Array<{ label: string; value: string }> = [
@@ -29,8 +27,6 @@ const STATE_CLASS: Record<ArticleState, string> = {
   new: "badge badge-new",
   read: "badge badge-read",
   explained: "badge badge-explained",
-  saved: "badge badge-saved",
-  dismissed: "badge badge-dismissed",
 };
 
 export default function Feed() {
@@ -54,10 +50,7 @@ export default function Feed() {
         limit,
         offset,
       });
-      const visible = stateFilter === ""
-        ? data.articles.filter((a) => a.state !== "dismissed")
-        : data.articles;
-      setArticles(visible);
+      setArticles(data.articles);
       setTotal(data.total);
     } catch {
       setError("Failed to load articles.");

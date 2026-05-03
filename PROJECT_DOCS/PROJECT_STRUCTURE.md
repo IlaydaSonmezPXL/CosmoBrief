@@ -17,7 +17,7 @@ AutomationProject/
 │   │   ├── dependencies.py           # get_current_user, require_admin FastAPI dependencies
 │   │   ├── routers/
 │   │   │   ├── auth.py               # POST /auth/register, POST /auth/login
-│   │   │   ├── articles.py           # GET /articles, GET /articles/:id, POST /articles/:id/state
+│   │   │   ├── articles.py           # GET /articles, GET /articles/:id
 │   │   │   ├── explanations.py       # POST /articles/:id/explanations, GET history
 │   │   │   ├── ratings.py            # POST /articles/:id/explanations/:mode/:ver/rating
 │   │   │   ├── users.py              # GET /users/:id/reading-map
@@ -241,7 +241,7 @@ pytest
 pytest tests/test_state_machine.py
 
 # Run a single test by name
-pytest -k "test_invalid_transition_new_to_saved"
+pytest -k "test_invalid_transition_new_to_explained"
 
 # Run with coverage
 pytest --cov=app --cov-report=term-missing

@@ -68,7 +68,7 @@ Everything needed to deploy and run the backend tier:
 | `backend/app/dependencies.py` | get_current_user (JWT → User), require_admin, http_error → NoReturn |
 | `backend/app/routers/health.py` | GET /health with live SELECT 1 |
 | `backend/app/routers/auth.py` | POST /auth/register (201), POST /auth/login (200) |
-| `backend/app/routers/articles.py` | GET /articles (feed + filters), GET /articles/:id (detail + new→read), POST /articles/:id/state |
+| `backend/app/routers/articles.py` | GET /articles (feed + filters), GET /articles/:id (detail + new→read) |
 | `backend/app/routers/explanations.py` | POST /articles/:id/explanations (200 cached / 201 generated), GET history |
 | `backend/app/routers/ratings.py` | POST /articles/:id/explanations/:mode/:version/rating |
 | `backend/app/routers/users.py` | GET /users/:user_id/reading-map |
@@ -77,7 +77,7 @@ Everything needed to deploy and run the backend tier:
 | `backend/.env.example` | Local dev template (not committed to production) |
 | `backend/pytest.ini` | asyncio_mode=auto, pythonpath=. |
 | `backend/tests/conftest.py` | Sets env vars before import (DATABASE_URL, JWT_SECRET_KEY, OPENAI_API_KEY) |
-| `backend/tests/test_state_machine.py` | 8 valid + 11 invalid parametrized transitions (22 cases) |
+| `backend/tests/test_state_machine.py` | parametrized valid/invalid transition cases |
 | `backend/tests/test_explanation_service.py` | 7 scenarios with AsyncMock session + patched generate_explanation |
 | `backend/tests/test_auth.py` | 7 tests: hash/verify, JWT roundtrip, token roles, tamper detection |
 

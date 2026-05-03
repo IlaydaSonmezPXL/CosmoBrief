@@ -15,17 +15,14 @@ from app.models.explanation import Explanation
 from app.schemas.article import (
     ArticleDetailResponse,
     ArticleListResponse,
-    ArticleStateTransitionRequest,
-    ArticleStateTransitionResponse,
     ArticleSummary,
     ExplanationStatus,
 )
 from app.services.snapi_client import SnapiUnavailable, classify_freshness, ensure_cache_fresh
-from app.services.state_machine import validate_transition
 
 router = APIRouter(tags=["articles"])
 
-StateFilter = Optional[Literal["new", "read", "explained", "saved", "dismissed"]]
+StateFilter = Optional[Literal["new", "read", "explained"]]
 FreshnessFilter = Optional[Literal["fresh", "aging", "archived"]]
 
 
@@ -102,7 +99,7 @@ async def list_articles(
     articles = []
     for article, state_value in rows:
         current_state = cast(
-            Literal["new", "read", "explained", "saved", "dismissed"],
+            Literal["new", "read", "explained"],
             state_value or "new",
         )
         articles.append(
@@ -155,7 +152,7 @@ async def get_article(
         db.add(state_row)
         await db.commit()
     current_state = cast(
-        Literal["new", "read", "explained", "saved", "dismissed"],
+        Literal["new", "read", "explained"],
         state_row.state,
     )
 
@@ -207,52 +204,3 @@ async def get_article(
     )
 
 
-@router.post("/articles/{article_id}/state", response_model=ArticleStateTransitionResponse)
-async def transition_state(
-    article_id: int,
-    payload: ArticleStateTransitionRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
-) -> ArticleStateTransitionResponse:
-    article = await db.get(ArticleCache, article_id)
-    if not article:
-        http_error(404, "article_not_found", "Article not found in cache.")
-
-    state_result = await db.execute(
-        select(ArticleState).where(
-            ArticleState.user_id == current_user.user_id,
-            ArticleState.article_id == article_id,
-        )
-    )
-    state_row = state_result.scalar_one_or_none()
-    from_state = state_row.state if state_row else None
-    to_state = payload.target_state
-
-    if not validate_transition(from_state, to_state):
-        http_error(
-            409,
-            "invalid_transition",
-            f"Cannot transition from '{from_state or 'new'}' to '{to_state}'.",
-        )
-
-    now = datetime.now(timezone.utc)
-    if state_row:
-        state_row.state = to_state
-        state_row.updated_at = now
-    else:
-        db.add(
-            ArticleState(
-                user_id=current_user.user_id,
-                article_id=article_id,
-                state=to_state,
-                updated_at=now,
-            )
-        )
-    await db.commit()
-
-    return ArticleStateTransitionResponse(
-        article_id=article_id,
-        previous_state=cast(Literal["new", "read", "explained", "saved", "dismissed"], from_state or "new"),
-        new_state=to_state,
-        transitioned_at=now,
-    )

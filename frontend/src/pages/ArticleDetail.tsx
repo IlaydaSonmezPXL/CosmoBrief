@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Nav from "../components/Nav";
-import { getArticle, transitionState, ArticleDetail as ArticleDetailType } from "../api/articles";
+import { getArticle, ArticleDetail as ArticleDetailType } from "../api/articles";
 import {
   requestExplanation,
   getExplanationHistory,
@@ -90,26 +90,12 @@ export default function ArticleDetail() {
     }
   }
 
-  async function handleTransition(target: "saved" | "dismissed") {
-    if (!article) return;
-    try {
-      await transitionState(articleId, target);
-      const { data } = await getArticle(articleId);
-      setArticle(data);
-    } catch {
-      // invalid transition — ignore
-    }
-  }
-
-  if (loadingArticle) return (
+if (loadingArticle) return (
     <div className="page"><Nav /><div className="container"><p className="loading-text">Loading…</p></div></div>
   );
   if (error || !article) return (
     <div className="page"><Nav /><div className="container"><p className="error-text">{error || "Article not found."}</p></div></div>
   );
-
-  const canSave    = ["read", "explained", "dismissed"].includes(article.state);
-  const canDismiss = ["read", "explained", "saved"].includes(article.state);
 
   return (
     <div className="page">
@@ -141,17 +127,6 @@ export default function ArticleDetail() {
         )}
 
         <p className="detail-summary">{article.summary}</p>
-
-        {(canSave || canDismiss) && (
-          <div className="action-bar">
-            {canSave && article.state !== "saved" && (
-              <button className="btn" onClick={() => handleTransition("saved")}>Bookmark</button>
-            )}
-            {canDismiss && article.state !== "dismissed" && (
-              <button className="btn" onClick={() => handleTransition("dismissed")}>Dismiss</button>
-            )}
-          </div>
-        )}
 
         <hr className="divider" />
 

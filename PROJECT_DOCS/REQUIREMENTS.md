@@ -57,7 +57,7 @@ ansible-playbook -i local-deploy/inventory.ini ansible/playbook.yml --vault-pass
 
 - FR-FE-05: Clicking an article opens a detail view. This triggers a `GET /articles/:id` call which causes the backend to transition the article from `new` → `read` as a side effect.
 - FR-FE-06: The detail view must display: full title, source, publication date, link to original article, freshness label, current state, and the status of all four explanation modes.
-- FR-FE-07: The detail view must contain Save and Dismiss action buttons. Button availability reflects valid transitions from the current state.
+- FR-FE-07: ~~Save and Dismiss action buttons removed.~~ The detail view shows only the AI explanation modes. State advances automatically (new→read→explained).
 
 ### 2.3 Explanation Interaction
 
@@ -116,7 +116,7 @@ ansible-playbook -i local-deploy/inventory.ini ansible/playbook.yml --vault-pass
   4. If exists and `needs_regeneration = true` → generate new, increment version (HTTP 201, `"source": "generated"`).
 - FR-BE-09: Generation calls OpenAI GPT-4o-mini with a structured output schema requesting both the explanation text and a topic tag in a single API call. Both fields are stored.
 - FR-BE-10: After generation, the backend stores: explanation text, topic tag, version number, timestamp, prompt tokens used, completion tokens used (from the OpenAI response's `usage` field).
-- FR-BE-11: After any generation, the backend sets the article state to `explained` for that user (unless already in `saved` or `dismissed`, in which case the explained flag is implicit via the existence of an explanation record).
+- FR-BE-11: After any generation, the backend always sets the article state to `explained` for that user.
 - FR-BE-12: A topic tag record is created for (user_id, article_id) if one does not already exist. Subsequent explanation requests for the same article do not overwrite or duplicate the topic tag.
 
 ### 3.4 Rating
@@ -172,8 +172,6 @@ ansible-playbook -i local-deploy/inventory.ini ansible/playbook.yml --vault-pass
 | `new` | Implicit default. No `article_state` DB record exists for this user + article. |
 | `read` | User has opened the article detail view. A DB record exists. |
 | `explained` | At least one AI explanation exists for this user + article. Set by backend automatically. |
-| `saved` | User has explicitly saved the article. |
-| `dismissed` | User has explicitly dismissed the article. |
 
 ### 5.2 Valid Transitions
 
@@ -181,26 +179,17 @@ ansible-playbook -i local-deploy/inventory.ini ansible/playbook.yml --vault-pass
 |---|---|---|---|
 | `new` (implicit) | `read` | User opens article detail view (`GET /articles/:id`) | Yes — side effect |
 | `read` | `explained` | Backend generates first explanation | Yes — automatic, not user-triggered |
-| `read` | `saved` | `POST /articles/:id/state` with `target_state: saved` | Yes |
-| `read` | `dismissed` | `POST /articles/:id/state` with `target_state: dismissed` | Yes |
-| `explained` | `saved` | `POST /articles/:id/state` | Yes |
-| `explained` | `dismissed` | `POST /articles/:id/state` | Yes |
-| `saved` | `dismissed` | `POST /articles/:id/state` | Yes |
-| `dismissed` | `saved` | `POST /articles/:id/state` | Yes |
 
 ### 5.3 Explicitly Invalid Transitions (return HTTP 409)
 
-- `new → saved`
-- `new → dismissed`
 - `new → explained` (never user-triggered)
-- Any backwards transition not listed above (e.g. `explained → read`)
+- Any backwards transition (e.g. `explained → read`)
 
 ### 5.4 Transition Rules
 
 - Rule STM-01: The `services/state_machine.py` module is the single source of truth. It exposes a function `validate_transition(from_state, to_state) -> bool` used by all routers.
 - Rule STM-02: The implicit `new` state is represented as `None` (no DB record). `validate_transition(None, 'read')` must return `True`.
-- Rule STM-03: `saved` and `dismissed` do not block further explanation requests. A dismissed article can still receive new explanations.
-- Rule STM-04: State transition records include a `updated_at` timestamp. History of all transitions is not stored — only the current state is persisted.
+- Rule STM-03: State transition records include a `updated_at` timestamp. History of all transitions is not stored — only the current state is persisted.
 
 ---
 
@@ -355,7 +344,7 @@ No authentication required.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `state` | string | No | Filter: `new`, `read`, `explained`, `saved`, `dismissed` |
+| `state` | string | No | Filter: `new`, `read`, `explained` |
 | `freshness` | string | No | Filter: `fresh`, `aging`, `archived` |
 | `limit` | integer | No | Default 20, max 50 |
 | `offset` | integer | No | Default 0 |
@@ -373,7 +362,7 @@ No authentication required.
       "url": "string",
       "image_url": "string|null",
       "freshness": "fresh|aging|archived",
-      "state": "new|read|explained|saved|dismissed"
+      "state": "new|read|explained"
     }
   ],
   "total": 100,
@@ -399,7 +388,7 @@ No authentication required.
   "url": "string",
   "image_url": "string|null",
   "freshness": "fresh|aging|archived",
-  "state": "new|read|explained|saved|dismissed",
+  "state": "new|read|explained",
   "explanations": {
     "eli12":     { "available": true,  "latest_version": 2, "needs_regeneration": false, "rating": "up" },
     "caveman":   { "available": false, "latest_version": null, "needs_regeneration": false, "rating": null },
@@ -413,33 +402,7 @@ No authentication required.
 
 ---
 
-### 7.4 Article State Transitions
-
-#### `POST /articles/:article_id/state`
-
-**Request:**
-```json
-{ "target_state": "saved|dismissed" }
-```
-
-**Response — 200 OK:**
-```json
-{
-  "article_id": 18882,
-  "previous_state": "read",
-  "new_state": "saved",
-  "transitioned_at": "ISO8601"
-}
-```
-
-**Response — 409 Conflict:** Invalid transition.
-```json
-{ "error": "invalid_transition", "message": "Cannot transition from 'new' to 'saved'." }
-```
-
----
-
-### 7.5 Explanations
+### 7.4 Explanations
 
 #### `POST /articles/:article_id/explanations`
 
@@ -621,12 +584,12 @@ Requires `role = 'admin'`. Non-admin authenticated requests return HTTP 403.
 | `id` | BIGSERIAL, PK | |
 | `user_id` | UUID, FK → users | ON DELETE CASCADE |
 | `article_id` | INTEGER, NOT NULL | References SNAPI ID (no FK to article_cache) |
-| `state` | VARCHAR(20), NOT NULL | `read`, `explained`, `saved`, `dismissed` |
+| `state` | VARCHAR(20), NOT NULL | `read`, `explained` |
 | `updated_at` | TIMESTAMPTZ, NOT NULL | Updated on every transition |
 
 **Unique constraint:** `(user_id, article_id)`
 
-**Note:** The `new` state is implicit — it is the absence of a record. Only records for articles in states `read`, `explained`, `saved`, or `dismissed` are stored.
+**Note:** The `new` state is implicit — it is the absence of a record. Only records for articles in states `read` or `explained` are stored.
 
 ---
 
@@ -822,7 +785,7 @@ All open questions from v1.0 are resolved. This section is the authoritative rec
 | OQ-09 | AWS deployment | Implemented as EXTRA4. Same roles, separate inventory. |
 | OQ-10 | Frontend port | Variable: `8080` (Vagrant, per Vagrantfile `forwarded_port`), `80` (AWS). Set in `group_vars/frontend.yml`, overridden per inventory. |
 | OQ-11 | Backend port | `8000`. Set in `group_vars/backend.yml`. |
-| OQ-12 | Dismissed articles | Hidden from default feed. Accessible via `?state=dismissed` filter. |
+| OQ-12 | ~~Dismissed articles~~ | Removed. `saved` and `dismissed` states removed from the project. |
 | OQ-13 | Vite build location | `delegate_to: localhost` tasks in the frontend Ansible role. Build runs on the developer's machine. Output `dist/` is copied to the VM. Node.js is not installed on the frontend VM. |
 | OQ-14 | Admin seeding | `community.postgresql.postgresql_query` with `INSERT ... ON CONFLICT DO NOTHING`. Pre-computed bcrypt hash stored in `ansible/vault.yml` as `vault_admin_password_hash`. Runs in the storage role, no dependency on backend being up. |
 | OQ-15 | Article "new" state | Implicit. No DB record is created until the user first interacts with an article. The `new` state is represented as `None` / absence of a row in `article_states`. |

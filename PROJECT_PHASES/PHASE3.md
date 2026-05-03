@@ -49,7 +49,7 @@ Everything needed to deploy the frontend tier and the centralized logging extra:
 | `frontend/src/components/Nav.tsx` | Home, Reading Map, Admin (role-conditional), Logout |
 | `frontend/src/pages/Login.tsx` | Login form, error handling, redirect to / on success |
 | `frontend/src/pages/Register.tsx` | Register form, error handling |
-| `frontend/src/pages/Feed.tsx` | Article feed, state+freshness filters, pagination, dismissed hidden by default |
+| `frontend/src/pages/Feed.tsx` | Article feed, state+freshness filters, pagination |
 | `frontend/src/pages/ArticleDetail.tsx` | Detail view: new→read side effect, 4 mode buttons, explanation panel, ratings, version history, Save/Dismiss |
 | `frontend/src/pages/ReadingMap.tsx` | Topic tag list with article counts per tag |
 | `frontend/src/pages/AdminDashboard.tsx` | All admin stats fields per API contract section 7.8 |
@@ -110,9 +110,9 @@ Per NFR-ANS-07, the Vite build runs on the Ansible control node (not on the fron
 
 `changed_when: false` on npm tasks ensures idempotency reporting — npm always executes but never reports "changed" since the observable change is in the dist/ files (which `copy` tracks via checksums).
 
-### Dismissed articles hidden by default (FR-FE-03)
+### ~~Dismissed articles hidden by default~~ (removed)
 
-The backend's `GET /articles` endpoint (no state filter) returns all articles including dismissed. The frontend Feed component client-side filters out `state === "dismissed"` when no explicit state filter is active. This satisfies FR-FE-03 without changing the API contract, and allows the "Dismissed" filter to explicitly show dismissed-only articles per FR-FE-04.
+`saved` and `dismissed` states were removed from the project post-phase. The state machine now only contains `new → read → explained`. The `/state` endpoint and frontend action buttons were removed accordingly.
 
 ### TypeScript instead of JSX
 
@@ -134,7 +134,7 @@ Demo procedure: Request an explanation from the browser → the backend's gunico
 |---|---|---|
 | SNAPI v4 uses snake_case field names, not camelCase | `app/services/snapi_client.py` | `newsSite` → `news_site`, `imageUrl` → `image_url`, `publishedAt` → `published_at` |
 | nginx could not proxy to backend (SELinux `httpd_t` domain blocks outbound TCP) | `ansible/roles/frontend/tasks/main.yml` | Added `ansible.posix.seboolean: httpd_can_network_connect: yes` |
-| Dismissed articles visible in default feed (violates FR-FE-03) | `frontend/src/pages/Feed.tsx` | Client-side filter: when no stateFilter active, exclude `state === "dismissed"` |
+| ~~Dismissed articles visible in default feed~~ | Removed — `dismissed` state no longer exists | — |
 
 ---
 
