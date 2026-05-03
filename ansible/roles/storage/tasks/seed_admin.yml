@@ -1,0 +1,22 @@
+---
+# Called from playbook play 4 (after backend play runs alembic upgrade head).
+# The users table does not exist until Alembic creates it in the backend play.
+# failed_when allows graceful no-op when --limit storage runs before backend
+# has ever deployed (users table absent). Full deploy always runs play 2 first.
+- name: Seed admin user
+  community.postgresql.postgresql_query:
+    db: "{{ db_name }}"
+    query: >-
+      INSERT INTO users (user_id, username, email, password_hash, role, created_at)
+      VALUES (gen_random_uuid(), %(username)s, %(email)s, %(password_hash)s, 'admin', NOW())
+      ON CONFLICT (username) DO UPDATE SET password_hash = EXCLUDED.password_hash
+    named_args:
+      username: "{{ vault_admin_username }}"
+      email: "{{ vault_admin_email }}"
+      password_hash: "{{ vault_admin_password_hash }}"
+  become_user: postgres
+  no_log: true
+  register: seed_result
+  failed_when:
+    - seed_result.failed
+    - "'relation \"users\" does not exist' not in (seed_result.msg | default(''))"

@@ -1,0 +1,14 @@
+[Unit]
+Description=Cosmo Brief API
+After=network.target
+
+[Service]
+User={{ app_user }}
+Group={{ app_group }}
+WorkingDirectory={{ app_dir }}
+EnvironmentFile={{ app_dir }}/.env
+ExecStart={{ venv_dir }}/bin/gunicorn -c {{ app_dir }}/gunicorn.conf.py app.main:app
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,131 @@
+---
+- name: Create backend system user
+  user:
+    name: "{{ app_user }}"
+    system: true
+    create_home: false
+
+- name: Install backend packages
+  dnf:
+    name:
+      - "python{{ python_version }}"
+      - "python{{ python_version }}-devel"
+      - "python{{ python_version }}-pip"
+      - python3-packaging
+    state: present
+
+# Stock generic/alma9 ships an old openssh built against an earlier OpenSSL
+# ABI. Any dnf transaction that pulls a newer openssl-libs causes sshd to
+# crash with "OpenSSL version mismatch". Force openssh to current to stay
+# in sync with whatever openssl-libs is now installed.
+- name: Keep openssh in sync with current openssl-libs
+  dnf:
+    name:
+      - openssh
+      - openssh-server
+    state: latest
+  notify: Restart sshd
+
+- name: Ensure application directory exists
+  file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0755"
+
+- name: Ensure log directory exists
+  file:
+    path: "{{ log_dir }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0755"
+
+- name: Copy backend source code
+  copy:
+    src: "{{ playbook_dir }}/../backend/"
+    dest: "{{ app_dir }}/"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0644"
+    directory_mode: "0755"
+  notify: Restart cosmobrief
+
+- name: Render backend environment file
+  template:
+    src: cosmobrief.env.j2
+    dest: "{{ app_dir }}/.env"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0600"
+  notify: Restart cosmobrief
+
+- name: Render gunicorn config
+  template:
+    src: gunicorn.conf.py.j2
+    dest: "{{ app_dir }}/gunicorn.conf.py"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0644"
+  notify: Restart cosmobrief
+
+- name: Install backend dependencies in virtualenv
+  pip:
+    requirements: "{{ app_dir }}/requirements.txt"
+    virtualenv: "{{ venv_dir }}"
+    virtualenv_command: "{{ python_bin }} -m venv"
+  become_user: "{{ app_user }}"
+  vars:
+    ansible_remote_tmp: /tmp
+  notify: Restart cosmobrief
+
+- name: Run Alembic migrations
+  command: "{{ venv_dir }}/bin/alembic upgrade head"
+  args:
+    chdir: "{{ app_dir }}"
+  become_user: "{{ app_user }}"
+  vars:
+    ansible_remote_tmp: /tmp
+  register: alembic_result
+  changed_when: >-
+    'Running upgrade' in (alembic_result.stdout | default('')) or
+    'Running upgrade' in (alembic_result.stderr | default(''))
+
+- name: Deploy systemd service
+  template:
+    src: cosmobrief.service.j2
+    dest: "/etc/systemd/system/{{ service_name }}.service"
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart cosmobrief
+
+- name: Enable and start backend service
+  systemd:
+    name: "{{ service_name }}"
+    state: started
+    enabled: true
+
+- name: Open backend API port in firewalld
+  ansible.posix.firewalld:
+    port: "{{ backend_port }}/tcp"
+    permanent: true
+    state: enabled
+    immediate: true
+
+# ── EXTRA3: rsyslog forwarding to central storage receiver ───────────────────
+- name: Deploy rsyslog client forwarding configuration
+  template:
+    src: rsyslog-client.conf.j2
+    dest: /etc/rsyslog.d/10-cosmobrief-forward.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart rsyslog
+
+- name: Enable and start rsyslog
+  systemd:
+    name: rsyslog
+    state: started
+    enabled: true

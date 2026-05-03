@@ -1,0 +1,7 @@
+---
+app_user: cosmobrief
+app_group: cosmobrief
+venv_dir: "{{ app_dir }}/venv"
+service_name: cosmobrief
+log_dir: /var/log/cosmobrief
+python_bin: "/usr/bin/python{{ python_version }}"

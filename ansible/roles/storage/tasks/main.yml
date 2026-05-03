@@ -1,0 +1,185 @@
+---
+# ── 1. Disable AppStream postgresql module ───────────────────────────────────
+# Must run before PGDG repo install. No suitable Ansible module exists for
+# dnf module operations; command use justified in PROJECT_README.md.
+- name: Disable built-in postgresql AppStream module
+  command: dnf -qy module disable postgresql
+  changed_when: false
+
+# ── 2. PGDG repository ───────────────────────────────────────────────────────
+- name: Import PGDG repository GPG key
+  rpm_key:
+    key: https://download.postgresql.org/pub/repos/yum/keys/RPM-GPG-KEY-PGDG
+    state: present
+
+- name: Import PGDG RHEL repo signing key
+  rpm_key:
+    key: https://download.postgresql.org/pub/repos/yum/keys/PGDG-RPM-GPG-KEY-RHEL
+    state: present
+
+- name: Install PGDG repository RPM
+  dnf:
+    name: "https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm"
+    state: present
+    disable_gpg_check: false
+
+# Prevent PGDG from shipping openssl-libs that would break stock openssh ABI.
+# Without this, installing PostgreSQL can replace system openssl-libs and
+# crash sshd with "OpenSSL version mismatch", locking us out of the host.
+- name: Exclude openssl packages from PGDG repos
+  ansible.builtin.shell: |
+    set -e
+    for f in /etc/yum.repos.d/pgdg-*.repo; do
+      [ -f "$f" ] || continue
+      grep -q '^excludepkgs=openssl' "$f" || \
+        sed -i '/^\[pgdg.*\]/a excludepkgs=openssl*' "$f"
+    done
+  changed_when: false
+
+# ── 3. Packages ──────────────────────────────────────────────────────────────
+# python3-psycopg2 required by community.postgresql modules on managed host.
+- name: Install PostgreSQL 16 packages and psycopg2
+  dnf:
+    name:
+      - postgresql16-server
+      - postgresql16-contrib
+      - python3-psycopg2
+    state: present
+
+# Resync openssh against whatever openssl-libs ended up installed, so the
+# sshd binary's compiled OpenSSL ABI matches the runtime library.
+- name: Keep openssh in sync with current openssl-libs
+  dnf:
+    name:
+      - openssh
+      - openssh-server
+    state: latest
+  notify: Restart sshd
+
+# ── 4. Cluster initialisation ─────────────────────────────────────────────────
+# creates: guards against re-running initdb on an existing cluster.
+# No suitable Ansible module exists for postgresql cluster init on PGDG;
+# command use justified in PROJECT_README.md.
+- name: Initialize PostgreSQL cluster
+  command: "{{ pg_setup_bin }} initdb"
+  args:
+    creates: "{{ pg_data_dir }}/PG_VERSION"
+
+# ── 5. Enable and start service ───────────────────────────────────────────────
+- name: Enable and start PostgreSQL service
+  systemd:
+    name: "{{ pg_service_name }}"
+    state: started
+    enabled: true
+
+- name: Open PostgreSQL port in firewalld
+  ansible.posix.firewalld:
+    port: "{{ pg_port }}/tcp"
+    permanent: true
+    state: enabled
+    immediate: true
+
+# ── 6. Configuration templates ────────────────────────────────────────────────
+# postgresql.conf changes (listen_addresses, port) require a full restart.
+- name: Deploy postgresql.conf
+  template:
+    src: postgresql.conf.j2
+    dest: "{{ pg_data_dir }}/postgresql.conf"
+    owner: postgres
+    group: postgres
+    mode: "0600"
+  notify: Restart PostgreSQL
+
+# pg_hba.conf changes are live-reloaded; no restart needed.
+- name: Deploy pg_hba.conf
+  template:
+    src: pg_hba.conf.j2
+    dest: "{{ pg_data_dir }}/pg_hba.conf"
+    owner: postgres
+    group: postgres
+    mode: "0600"
+  notify: Reload PostgreSQL
+
+# Flush so PostgreSQL is listening on all interfaces before DB setup tasks.
+- name: Apply configuration changes
+  meta: flush_handlers
+
+# ── EXTRA3: Central rsyslog receiver ─────────────────────────────────────────
+- name: Ensure rsyslog is installed
+  dnf:
+    name: rsyslog
+    state: present
+
+- name: Create central log directory
+  file:
+    path: /var/log/cosmobrief-central
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy rsyslog server configuration
+  template:
+    src: rsyslog-server.conf.j2
+    dest: /etc/rsyslog.d/10-cosmobrief-server.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart rsyslog
+
+- name: Open rsyslog UDP port in firewalld
+  ansible.posix.firewalld:
+    port: "514/udp"
+    permanent: true
+    state: enabled
+    immediate: true
+
+- name: Open rsyslog TCP port in firewalld
+  ansible.posix.firewalld:
+    port: "514/tcp"
+    permanent: true
+    state: enabled
+    immediate: true
+
+- name: Enable and start rsyslog
+  systemd:
+    name: rsyslog
+    state: started
+    enabled: true
+
+# ── 7. Database and user ──────────────────────────────────────────────────────
+- name: Create application database
+  community.postgresql.postgresql_db:
+    name: "{{ db_name }}"
+    state: present
+  become_user: postgres
+
+- name: Create application database user
+  community.postgresql.postgresql_user:
+    name: "{{ db_user }}"
+    password: "{{ vault_db_password }}"
+    state: present
+  become_user: postgres
+  no_log: true
+
+# Grant CONNECT + CREATE on the database.
+- name: Grant database privileges to application user
+  community.postgresql.postgresql_privs:
+    db: "{{ db_name }}"
+    role: "{{ db_user }}"
+    privs: ALL
+    type: database
+    state: present
+  become_user: postgres
+
+# PostgreSQL 15+ revoked CREATE on public schema from PUBLIC by default.
+# Must grant explicitly so Alembic can create tables.
+- name: Grant public schema privileges to application user
+  community.postgresql.postgresql_privs:
+    db: "{{ db_name }}"
+    role: "{{ db_user }}"
+    privs: ALL
+    type: schema
+    objs: public
+    state: present
+  become_user: postgres

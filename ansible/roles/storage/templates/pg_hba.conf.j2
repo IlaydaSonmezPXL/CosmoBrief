@@ -1,0 +1,12 @@
+# Managed by Ansible — do not edit manually
+# TYPE  DATABASE        USER            ADDRESS                                     METHOD
+
+# Unix socket — Ansible tasks and local maintenance
+local   all             all                                                         peer
+
+# Loopback
+host    all             all             127.0.0.1/32                                scram-sha-256
+host    all             all             ::1/128                                     scram-sha-256
+
+# Backend application — IP resolved from inventory at deploy time
+host    {{ db_name }}   {{ db_user }}   {{ hostvars['backend']['ansible_host'] }}/32   scram-sha-256

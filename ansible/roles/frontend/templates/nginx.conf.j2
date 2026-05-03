@@ -1,0 +1,49 @@
+user nginx;
+worker_processes auto;
+error_log /var/log/nginx/error.log warn;
+pid /run/nginx.pid;
+
+include /usr/share/nginx/modules/*.conf;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log /var/log/nginx/access.log main;
+
+    sendfile        on;
+    keepalive_timeout 65;
+
+    server {
+        listen {{ frontend_http_port }};
+        server_name _;
+
+        root {{ web_root }};
+        index index.html;
+
+        location /health {
+            add_header Content-Type application/json;
+            return 200 '{"status": "ok", "service": "frontend"}';
+        }
+
+        location /api/ {
+            proxy_pass http://{{ hostvars['backend']['ansible_host'] }}:{{ backend_port }}/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_read_timeout 120;
+        }
+
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+    }
+}

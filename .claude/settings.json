@@ -7,16 +7,37 @@
       "LS",
       "Edit",
       "MultiEdit",
-      "Write(src/**)",
-      "Write(tests/**)",
-      "Write(docs/**)",
+      "Write(backend/**)",
+      "Write(frontend/src/**)",
+      "Write(frontend/package.json)",
+      "Write(frontend/vite.config.js)",
+      "Write(frontend/.env.example)",
+      "Write(storage/**)",
+      "Write(ansible/**)",
+      "Write(PROJECT_DOCS/**)",
+      "Write(PROJECT_README.md)",
+      "Write(PROJECT_STRUCTURE.md)",
       "Bash(npm run *)",
+      "Bash(npm install)",
+      "Bash(npm ci)",
       "Bash(npm install *)",
       "Bash(npm test *)",
       "Bash(npx tsc *)",
       "Bash(npx vitest *)",
       "Bash(npx prettier *)",
       "Bash(npx eslint *)",
+      "Bash(python3 -m venv *)",
+      "Bash(pip install *)",
+      "Bash(pip install -r *)",
+      "Bash(pytest *)",
+      "Bash(mypy *)",
+      "Bash(ruff *)",
+      "Bash(alembic *)",
+      "Bash(uvicorn *)",
+      "Bash(ansible-playbook *)",
+      "Bash(ansible-vault *)",
+      "Bash(ansible-galaxy *)",
+      "Bash(ansible *)",
       "Bash(git status)",
       "Bash(git diff *)",
       "Bash(git log *)",
@@ -29,15 +50,28 @@
       "Bash(tail *)",
       "Bash(wc *)",
       "Bash(find *)",
-      "Bash(echo *)"
+      "Bash(echo *)",
+      "Bash(ls *)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(source *)"
     ],
     "deny": [
       "Read(.env*)",
+      "Read(.vault_pass)",
       "Read(**/secrets/**)",
       "Write(.env*)",
+      "Write(.vault_pass)",
       "Write(production.*)",
       "Write(.github/workflows/*)",
       "Write(package-lock.json)",
+      "Write(frontend/dist/**)",
+      "Write(local-deploy/Vagrantfile)",
+      "Write(local-deploy/inventory.ini)",
+      "Write(provisioning/**)",
+      "Write(PROJECT_DOCS/ASSIGNMENT.md)",
+      "Write(PROJECT_DOCS/CLAUDEBEHAVIOR.md)",
       "Bash(rm -rf *)",
       "Bash(sudo *)",
       "Bash(git push *)",
@@ -48,27 +82,37 @@
       "Bash(curl * | sh)",
       "Bash(wget *)",
       "Bash(chmod *)",
-      "Bash(chown *)"
+      "Bash(chown *)",
+      "Bash(vagrant *)"
     ],
     "defaultMode": "acceptEdits"
   },
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Write(*.ts)",
+        "matcher": "Write(backend/app/**/*.py)",
         "hooks": [
           {
             "type": "command",
-            "command": "npx prettier --write $file"
+            "command": "cd backend && source venv/bin/activate 2>/dev/null && ruff check $file --fix && mypy $file"
           }
         ]
       },
       {
-        "matcher": "Write(*.tsx)",
+        "matcher": "Write(frontend/src/**/*.jsx)",
         "hooks": [
           {
             "type": "command",
-            "command": "npx prettier --write $file"
+            "command": "cd frontend && npx prettier --write $file"
+          }
+        ]
+      },
+      {
+        "matcher": "Write(frontend/src/**/*.js)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd frontend && npx prettier --write $file"
           }
         ]
       }

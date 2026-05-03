@@ -7,3 +7,40 @@ pe2_state.env
 # Committed local Vagrant starter files
 !local-deploy/inventory.ini
 !local-deploy/ansible.cfg
+
+# Secrets — never commit
+.vault_pass
+*.vault_pass
+
+# Backend
+backend/venv/
+backend/.env
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/**/*.pyo
+backend/.mypy_cache/
+backend/.pytest_cache/
+backend/.ruff_cache/
+**/__pycache__/
+*.pyc
+*.pyo
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Frontend
+frontend/dist/
+frontend/.env.local
+frontend/.env.production
+frontend/node_modules/
+
+# Ansible
+ansible/vault.yml.bak
+*.retry
+
+# Vagrant
+.vagrant/
+
+# OS
+.DS_Store
+Thumbs.db

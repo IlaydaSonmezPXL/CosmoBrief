@@ -1,0 +1,18 @@
+# Central rsyslog receiver — runs on the storage VM ({{ inventory_hostname }})
+# Receives logs from all tiers on UDP and TCP port 514.
+
+module(load="imudp")
+input(type="imudp" port="514")
+
+module(load="imtcp")
+input(type="imtcp" port="514")
+
+# Write logs per originating host to a dedicated directory.
+template(name="PerHostFile"
+         type="string"
+         string="/var/log/cosmobrief-central/%HOSTNAME%/%PROGRAMNAME%.log")
+
+if $fromhost-ip != "127.0.0.1" then {
+    action(type="omfile" dynaFile="PerHostFile" dirCreateMode="0755" fileCreateMode="0644")
+    stop
+}
