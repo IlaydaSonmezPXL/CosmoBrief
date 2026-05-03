@@ -111,6 +111,12 @@ Completed tasks, moved from TODO.md after verification.
 
 ---
 
+## DB Migration: saved/dismissed → read (2026-05-03)
+
+- [x] Ran `UPDATE article_states SET state = 'read' WHERE state IN ('saved', 'dismissed')` directly on storage VM — migrated 3 rows; required because existing DB rows with old states caused Pydantic `ValidationError` against the narrowed `ArticleState` literal after the bookmark/dismiss removal
+
+---
+
 ## Removal: Bookmark / Dismiss (2026-05-03)
 
 - [x] `backend/app/schemas/article.py` — `ArticleState` reduced to `"new" | "read" | "explained"`; removed `ArticleStateTransitionRequest` and `ArticleStateTransitionResponse` schemas

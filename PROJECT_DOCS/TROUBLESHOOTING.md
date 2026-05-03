@@ -171,6 +171,36 @@ To silence: rename the hosts (e.g. `storage-1`) in `local-deploy/inventory.ini` 
 
 ---
 
+## Feed returns "Failed to load articles" after removing saved/dismissed states
+
+### Symptoms
+
+`GET /articles` returns 500. Frontend shows "Failed to load articles." Backend error log:
+
+```
+pydantic_core._pydantic_core.ValidationError: 1 validation error for ArticleSummary
+state
+  Input should be 'new', 'read' or 'explained' [type=literal_error, input_value='dismissed', input_type=str]
+```
+
+### Root cause
+
+Existing `article_states` rows had `state = 'saved'` or `state = 'dismissed'` from before the bookmark/dismiss removal. After narrowing `ArticleState` to `Literal["new", "read", "explained"]`, Pydantic rejects any DB row with the old values when building the response.
+
+### Fix
+
+Run on the storage VM (one-time, already applied 2026-05-03):
+
+```sql
+UPDATE article_states
+SET state = 'read', updated_at = NOW()
+WHERE state IN ('saved', 'dismissed');
+```
+
+If redeploying from scratch on a fresh DB this issue will not occur.
+
+---
+
 ## Explanations return 500 "Failed to generate explanation"
 
 ### Symptoms
