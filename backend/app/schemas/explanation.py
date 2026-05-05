@@ -3,7 +3,7 @@ from typing import List, Literal, Optional
 
 from pydantic import BaseModel
 
-ExplanationMode = Literal["eli12", "caveman", "scientist", "story"]
+ExplanationMode = Literal["eli12", "caveman", "alien", "story"]
 RatingValue = Literal["up", "down"]
 ExplanationSource = Literal["cached", "generated"]
 

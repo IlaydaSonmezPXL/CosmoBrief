@@ -6,6 +6,8 @@ import Feed from "./pages/Feed";
 import ArticleDetail from "./pages/ArticleDetail";
 import ReadingMap from "./pages/ReadingMap";
 import AdminDashboard from "./pages/AdminDashboard";
+import Wordle from "./pages/Wordle";
+import ScrollToTop from "./components/ScrollToTop";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -23,6 +25,7 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <ScrollToTop />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -47,6 +50,14 @@ export default function App() {
             element={
               <PrivateRoute>
                 <ReadingMap />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/wordle"
+            element={
+              <PrivateRoute>
+                <Wordle />
               </PrivateRoute>
             }
           />

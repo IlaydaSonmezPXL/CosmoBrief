@@ -61,7 +61,7 @@ ansible-playbook -i local-deploy/inventory.ini ansible/playbook.yml --vault-pass
 
 ### 2.3 Explanation Interaction
 
-- FR-FE-08: The detail view displays four mode buttons: "Explain like I'm 12", "Explain like a caveman", "Explain like a scientist", "Explain like a story". Each button shows whether an explanation is available, needs regeneration, or has not been requested.
+- FR-FE-08: The detail view displays four mode buttons: "Explain like I'm 12", "Explain like a caveman", "Explain like an alien", "Explain like a story". Each button shows whether an explanation is available, needs regeneration, or has not been requested.
 - FR-FE-09: Requesting an explanation calls `POST /articles/:id/explanations`. The frontend shows a loading indicator while awaiting the response.
 - FR-FE-10: The returned explanation text renders in a clearly designated section. The version number and timestamp are shown.
 - FR-FE-11: After an explanation is displayed, thumbs-up and thumbs-down rating controls appear. After rating is submitted, the controls update to show the recorded rating and become inactive for the current version.
@@ -201,7 +201,7 @@ ansible-playbook -i local-deploy/inventory.ini ansible/playbook.yml --vault-pass
 |---|---|
 | `eli12` | Explain like I'm 12 |
 | `caveman` | Explain like a caveman |
-| `scientist` | Explain like a scientist |
+| `alien` | Explain like an alien |
 | `story` | Explain like a story |
 
 Mode keys are stored in the database and used in API paths. Display labels are frontend-only.
@@ -221,7 +221,7 @@ Respond only in JSON with the following structure: {"explanation": "...", "topic
 **Mode instructions by key:**
 - `eli12`: "as if explaining to a 12-year-old, using simple words and relatable comparisons"
 - `caveman`: "using only very simple words, short sentences, and primitive concepts as if speaking to a caveman"
-- `scientist`: "using precise scientific terminology, assuming an expert audience with physics and aerospace background"
+- `alien`: "as an alien visitor reporting this human space news back to your home planet. Use alien exclamations like 'Glorp!' and 'Zlorp!' naturally throughout. Express bewildered curiosity about human concepts, occasionally misunderstand Earth things in funny ways, and pepper the explanation with alien slang (glorp, zlorp, florpnax, bleeble, snorkvax). Write as if humans discovering space is both adorable and slightly baffling to your ancient civilization."
 - `story`: "as a short compelling narrative story, with a beginning, middle, and end"
 
 **Token tracking:** The `usage` field of every OpenAI API response contains `prompt_tokens` and `completion_tokens`. Both are stored in the `explanations` table.
@@ -392,7 +392,7 @@ No authentication required.
   "explanations": {
     "eli12":     { "available": true,  "latest_version": 2, "needs_regeneration": false, "rating": "up" },
     "caveman":   { "available": false, "latest_version": null, "needs_regeneration": false, "rating": null },
-    "scientist": { "available": true,  "latest_version": 1, "needs_regeneration": true,  "rating": "down" },
+    "alien":     { "available": true,  "latest_version": 1, "needs_regeneration": true,  "rating": "down" },
     "story":     { "available": false, "latest_version": null, "needs_regeneration": false, "rating": null }
   }
 }
@@ -408,7 +408,7 @@ No authentication required.
 
 **Request:**
 ```json
-{ "mode": "eli12|caveman|scientist|story" }
+{ "mode": "eli12|caveman|alien|story" }
 ```
 
 **Response — 200 OK** (cached):
@@ -529,7 +529,7 @@ Requires `role = 'admin'`. Non-admin authenticated requests return HTTP 403.
   "explanations_by_mode": {
     "eli12":     120,
     "caveman":   85,
-    "scientist": 63,
+    "alien":     63,
     "story":     50
   },
   "total_prompt_tokens": 482000,
@@ -600,7 +600,7 @@ Requires `role = 'admin'`. Non-admin authenticated requests return HTTP 403.
 | `explanation_id` | UUID, PK | `gen_random_uuid()` default |
 | `user_id` | UUID, FK → users | ON DELETE CASCADE |
 | `article_id` | INTEGER, NOT NULL | SNAPI ID |
-| `mode` | VARCHAR(20), NOT NULL | `eli12`, `caveman`, `scientist`, `story` |
+| `mode` | VARCHAR(20), NOT NULL | `eli12`, `caveman`, `alien`, `story` |
 | `version` | INTEGER, NOT NULL | Starts at 1, scoped to (user_id, article_id, mode) |
 | `text` | TEXT, NOT NULL | |
 | `generated_at` | TIMESTAMPTZ, NOT NULL | |

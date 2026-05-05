@@ -28,7 +28,7 @@ async def admin_stats(
         select(Explanation.mode, func.count()).group_by(Explanation.mode)
     )
     explanations_by_mode = {mode: count for mode, count in mode_rows.all()}
-    for mode in ["eli12", "caveman", "scientist", "story"]:
+    for mode in ["eli12", "caveman", "alien", "story"]:
         explanations_by_mode.setdefault(mode, 0)
 
     token_rows = await db.execute(

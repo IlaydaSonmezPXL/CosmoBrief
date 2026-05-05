@@ -1,6 +1,6 @@
 import apiClient from "./client";
 
-export type ExplanationMode = "eli12" | "caveman" | "scientist" | "story";
+export type ExplanationMode = "eli12" | "caveman" | "alien" | "story";
 
 export interface ExplanationResponse {
   article_id: number;

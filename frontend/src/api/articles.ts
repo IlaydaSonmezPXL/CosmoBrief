@@ -36,6 +36,7 @@ export interface ArticleListResponse {
 export function listArticles(params?: {
   state?: string;
   freshness?: string;
+  q?: string;
   limit?: number;
   offset?: number;
 }) {

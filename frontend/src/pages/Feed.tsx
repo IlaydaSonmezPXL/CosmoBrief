@@ -1,13 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Nav from "../components/Nav";
-import { listArticles, Article, ArticleState, Freshness } from "../api/articles";
+import AstronomicalEvents from "../components/AstronomicalEvents";
+import { listArticles, Article, Freshness } from "../api/articles";
 
 const STATE_OPTIONS: Array<{ label: string; value: string }> = [
   { label: "All", value: "" },
-  { label: "New", value: "new" },
+  { label: "Unread", value: "new" },
   { label: "Read", value: "read" },
-  { label: "Explained", value: "explained" },
 ];
 
 const FRESHNESS_OPTIONS: Array<{ label: string; value: string }> = [
@@ -23,12 +23,6 @@ const FRESHNESS_CLASS: Record<Freshness, string> = {
   archived: "badge badge-archived",
 };
 
-const STATE_CLASS: Record<ArticleState, string> = {
-  new: "badge badge-new",
-  read: "badge badge-read",
-  explained: "badge badge-explained",
-};
-
 export default function Feed() {
   const navigate = useNavigate();
   const [articles, setArticles] = useState<Article[]>([]);
@@ -36,9 +30,20 @@ export default function Feed() {
   const [offset, setOffset] = useState(0);
   const [stateFilter, setStateFilter] = useState("");
   const [freshnessFilter, setFreshnessFilter] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const limit = 20;
+  const isInitialMount = useRef(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchQuery(searchInput.trim());
+      setOffset(0);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const fetchArticles = useCallback(async () => {
     setLoading(true);
@@ -47,6 +52,7 @@ export default function Feed() {
       const { data } = await listArticles({
         state: stateFilter || undefined,
         freshness: freshnessFilter || undefined,
+        q: searchQuery || undefined,
         limit,
         offset,
       });
@@ -57,9 +63,14 @@ export default function Feed() {
     } finally {
       setLoading(false);
     }
-  }, [stateFilter, freshnessFilter, offset]);
+  }, [stateFilter, freshnessFilter, searchQuery, offset]);
 
   useEffect(() => { void fetchArticles(); }, [fetchArticles]);
+
+  useLayoutEffect(() => {
+    if (isInitialMount.current) { isInitialMount.current = false; return; }
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+  }, [articles]);
 
   function handleFilterChange() { setOffset(0); }
 
@@ -76,6 +87,15 @@ export default function Feed() {
         </div>
 
         <div className="filter-bar">
+          <div className="filter-search">
+            <input
+              type="search"
+              className="filter-search-input"
+              placeholder="Search articles…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+            />
+          </div>
           <div className="filter-group">
             <span>State</span>
             <select
@@ -96,6 +116,8 @@ export default function Feed() {
           </div>
         </div>
 
+        <AstronomicalEvents />
+
         {loading && <p className="loading-text">Loading…</p>}
         {error && <p className="error-text">{error}</p>}
 
@@ -107,7 +129,9 @@ export default function Feed() {
           >
             <div className="article-badges">
               <span className={FRESHNESS_CLASS[article.freshness]}>{article.freshness}</span>
-              <span className={STATE_CLASS[article.state]}>{article.state}</span>
+              {article.state !== "new" && (
+                <span className="badge badge-read">read</span>
+              )}
             </div>
             {article.image_url && (
               <img src={article.image_url} alt="" className="article-img" />
@@ -131,7 +155,7 @@ export default function Feed() {
             disabled={offset === 0}
             onClick={() => setOffset(Math.max(0, offset - limit))}
           >
-            ← Prev
+            Prev
           </button>
           <span className="pagination-info">{currentPage} / {totalPages}</span>
           <button
@@ -139,7 +163,7 @@ export default function Feed() {
             disabled={offset + limit >= total}
             onClick={() => setOffset(offset + limit)}
           >
-            Next →
+            Next
           </button>
         </div>
       </div>

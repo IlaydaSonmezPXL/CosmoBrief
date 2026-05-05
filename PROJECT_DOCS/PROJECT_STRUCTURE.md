@@ -17,24 +17,30 @@ AutomationProject/
 │   │   ├── dependencies.py           # get_current_user, require_admin FastAPI dependencies
 │   │   ├── routers/
 │   │   │   ├── auth.py               # POST /auth/register, POST /auth/login
-│   │   │   ├── articles.py           # GET /articles, GET /articles/:id
+│   │   │   ├── articles.py           # GET /articles (supports ?q= search), GET /articles/:id
 │   │   │   ├── explanations.py       # POST /articles/:id/explanations, GET history
 │   │   │   ├── ratings.py            # POST /articles/:id/explanations/:mode/:ver/rating
-│   │   │   ├── users.py              # GET /users/:id/reading-map
+│   │   │   ├── users.py              # GET /users/me, PATCH /users/me, DELETE /users/me/data, GET /users/:id/reading-map
 │   │   │   ├── admin.py              # GET /admin/stats (admin role only)
+│   │   │   ├── wordle.py             # GET /wordle/words (authenticated, returns word list from DB)
+│   │   │   ├── astronomical.py       # GET /astronomical/events?lat&lon — curated events + AstronomyAPI planet proxy
 │   │   │   └── health.py             # GET /health (includes live DB query)
 │   │   ├── models/                   # SQLAlchemy ORM models (one file per table)
 │   │   │   ├── user.py               # users table
 │   │   │   ├── article_state.py      # article_states table
 │   │   │   ├── article_cache.py      # article_cache table
 │   │   │   ├── explanation.py        # explanations table
-│   │   │   └── topic_tag.py          # topic_tags table
+│   │   │   ├── topic_tag.py          # topic_tags table
+│   │   │   └── wordle_word.py        # wordle_words table
 │   │   ├── schemas/                  # Pydantic v2 request/response models
 │   │   │   ├── auth.py
 │   │   │   ├── article.py
 │   │   │   ├── explanation.py
 │   │   │   ├── rating.py
-│   │   │   └── admin.py
+│   │   │   ├── admin.py
+│   │   │   ├── users.py              # UserMeResponse, UpdateMeRequest
+│   │   │   ├── wordle.py             # WordleWordsResponse
+│   │   │   └── astronomical.py       # AstronomicalEvent, AstronomicalEventsResponse
 │   │   └── services/                 # All business logic (no direct DB access in routers)
 │   │       ├── state_machine.py      # validate_transition(from, to) — single source of truth
 │   │       ├── explanation_service.py # Generate-or-retrieve decision logic
@@ -43,6 +49,7 @@ AutomationProject/
 │   │       └── auth_service.py       # JWT create/verify, bcrypt hash/verify
 │   ├── alembic/
 │   │   ├── versions/                 # Migration files — never delete or modify after creation
+│   │   │                             # includes f6a1b2c3d4e5_create_wordle_words.py
 │   │   ├── env.py                    # Alembic env using async SQLAlchemy engine from app
 │   │   └── script.py.mako
 │   ├── tests/                        # Backend unit tests (pytest + pytest-asyncio)
@@ -61,17 +68,24 @@ AutomationProject/
 │   │   ├── App.tsx                   # Route definitions (React Router v6), PrivateRoute, AdminRoute
 │   │   ├── api/
 │   │   │   ├── client.ts             # Axios instance: base URL from VITE_API_URL, Bearer injection, 401 interceptor
-│   │   │   ├── articles.ts           # Typed wrappers for article endpoints
+│   │   │   ├── articles.ts           # Typed wrappers for article endpoints (includes search param q)
 │   │   │   ├── explanations.ts       # Typed wrappers for explanation + rating endpoints
-│   │   │   └── auth.ts               # Typed wrappers for register + login
+│   │   │   ├── auth.ts               # Typed wrappers for register + login
+│   │   │   ├── wordle.ts             # getWordleWords() — fetches word list from backend
+│   │   │   ├── users.ts              # getMe, updateMe, wipeUserData — user settings API wrappers
+│   │   │   └── astronomical.ts       # getAstronomicalEvents(lat?, lon?) — fetches events from backend
 │   │   ├── components/
-│   │   │   └── Nav.tsx               # Navbar: home, reading map, admin (role-conditional), logout
+│   │   │   ├── Nav.tsx               # Navbar: home, wordle, reading map, admin (role-conditional), logout
+│   │   │   ├── EarthIcon.tsx         # SVG Earth icon used in Nav, Login, Register
+│   │   │   ├── ScrollToTop.tsx       # Scrolls window to top on every route change
+│   │   │   └── AstronomicalEvents.tsx # Astronomical events widget: location bar, city geocoding, horizontal card strip
 │   │   ├── pages/
 │   │   │   ├── Login.tsx
 │   │   │   ├── Register.tsx
-│   │   │   ├── Feed.tsx              # Article feed with state/freshness filters, pagination
-│   │   │   ├── ArticleDetail.tsx     # Detail view: explanation modes, ratings, version history, save/dismiss
-│   │   │   ├── ReadingMap.tsx        # Topic tag aggregation view — expandable rows show per-tag articles
+│   │   │   ├── Feed.tsx              # Article feed with search, state/freshness filters, pagination
+│   │   │   ├── ArticleDetail.tsx     # Detail view: explanation modes, ratings, version history
+│   │   │   ├── ReadingMap.tsx        # Interactive SVG constellation — topic stars, article panel on click
+│   │   │   ├── Wordle.tsx            # Space Wordle game — word fetched from backend, daily rotation, localStorage state per user+date; stats modal (Played/Win%/Streak/Best + distribution chart + share); stats in localStorage key wordle_stats_${userId}
 │   │   │   └── AdminDashboard.tsx    # Admin-only stats view
 │   │   └── context/
 │   │       └── AuthContext.tsx       # JWT storage in localStorage, user state, login/logout
@@ -92,15 +106,18 @@ AutomationProject/
 │
 ├── ansible/
 │   ├── playbook.yml                  # Entry point: four plays (storage, backend, frontend, seed)
+│   │                                 # Play 4 seeds admin user AND wordle word list
 │   ├── vault.yml                     # Ansible Vault encrypted secrets (NEVER commit decrypted)
 │   ├── roles/
 │   │   ├── storage/
 │   │   │   ├── tasks/
-│   │   │   │   └── main.yml          # Install PG16, disable AppStream module, initdb,
-│   │   │   │                         # exclude openssl* from PGDG repos (prevents sshd ABI break),
-│   │   │   │                         # keep openssh in sync with current openssl-libs,
-│   │   │   │                         # configure pg_hba.conf, create DB + user, run Alembic,
-│   │   │   │                         # seed admin user, configure rsyslog (EXTRA3)
+│   │   │   │   ├── main.yml          # Install PG16, disable AppStream module, initdb,
+│   │   │   │   │                     # exclude openssl* from PGDG repos (prevents sshd ABI break),
+│   │   │   │   │                     # keep openssh in sync with current openssl-libs,
+│   │   │   │   │                     # configure pg_hba.conf, create DB + user, run Alembic,
+│   │   │   │   │                     # seed admin user, configure rsyslog (EXTRA3)
+│   │   │   │   ├── seed_admin.yml    # Admin user seed (ON CONFLICT DO NOTHING, idempotent)
+│   │   │   │   └── seed_wordle.yml   # Wordle word list seed (94 space words, ON CONFLICT DO NOTHING)
 │   │   │   ├── templates/
 │   │   │   │   ├── pg_hba.conf.j2    # PostgreSQL client authentication config
 │   │   │   │   ├── postgresql.conf.j2 # PostgreSQL server config (listen_addresses, etc.)
@@ -447,7 +464,7 @@ This destroys all AWS resources created by the provisioning script. Verify in th
 
 | File | Location | Description |
 |---|---|---|
-| `playbook.yml` | `ansible/` | Entry point. Four plays: `hosts: storage`, `hosts: backend`, `hosts: frontend`, and a fourth `hosts: storage` seed play. The seed play runs after the backend play so that Alembic has already created the `users` table before admin seeding executes. |
+| `playbook.yml` | `ansible/` | Entry point. Four plays: `hosts: storage`, `hosts: backend`, `hosts: frontend`, and a fourth `hosts: storage` seed play. The seed play runs after the backend play so that Alembic has already created the `users` and `wordle_words` tables. Seeds admin user (`seed_admin.yml`) and wordle word list (`seed_wordle.yml`), both idempotent via `ON CONFLICT DO NOTHING`. |
 | `vault.yml` | `ansible/` | Ansible Vault encrypted. Contains all secrets. Never commit decrypted. |
 | `all.yml` | `ansible/group_vars/` | Variables shared across all tiers: `app_name`, `snapi_cache_ttl_minutes`. |
 | `frontend.yml` | `ansible/group_vars/` | `frontend_http_port: 8080` (Vagrant default). Pass `-e "frontend_http_port=80"` when deploying to AWS. |

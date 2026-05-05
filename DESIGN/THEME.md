@@ -6,18 +6,23 @@ Space/astronomy dark theme. All tokens live in `frontend/src/index.css` as CSS c
 
 ## Color Tokens
 
-| Token | Value | Usage |
+Tokens marked **theme-swappable** are overridden per theme. All others are global constants.
+
+| Token | Default value | Usage |
 |---|---|---|
-| `--bg` | `#07090f` | Page background |
-| `--bg-card` | `#0c1120` | Card surfaces |
-| `--bg-card-hover` | `#101828` | Card hover state |
-| `--bg-elevated` | `#131d2e` | Elevated panels (explanation, history) |
-| `--border` | `#1a2540` | Default borders |
-| `--border-mid` | `#243354` | Medium-emphasis borders, input focus rings |
-| `--accent` | `#4f9cf9` | Primary CTA, links, active states |
-| `--accent-purple` | `#8b5cf6` | Secondary accent, "read" state badge |
-| `--accent-cyan` | `#22d3ee` | "fresh" badge, "explained" state badge |
-| `--accent-gold` | `#f59e0b` | "aging" badge |
+| `--bg` | `#07090f` | Page background — **theme-swappable** |
+| `--bg-rgb` | `7, 9, 15` | RGB of `--bg` for `rgba()` — **theme-swappable** |
+| `--bg-card` | `#0c1120` | Card surfaces — **theme-swappable** |
+| `--bg-card-hover` | `#101828` | Card hover state — **theme-swappable** |
+| `--bg-elevated` | `#131d2e` | Elevated panels (explanation, history) — **theme-swappable** |
+| `--border` | `#1a2540` | Default borders — **theme-swappable** |
+| `--border-mid` | `#243354` | Medium-emphasis borders, input focus — **theme-swappable** |
+| `--accent` | `#4f9cf9` | Primary CTA, links, active states — **theme-swappable** |
+| `--accent-rgb` | `79, 156, 249` | RGB of `--accent` for `rgba()` — **theme-swappable** |
+| `--accent-light` | `#6aabff` | Lighter accent for hover states — **theme-swappable** |
+| `--accent-purple` | `#8b5cf6` | "read" badge — **fixed** |
+| `--accent-cyan` | `#22d3ee` | "fresh" badge, Wordle correct tile — **fixed** |
+| `--accent-gold` | `#f59e0b` | "aging" badge, Wordle present tile — **fixed** |
 | `--text` | `#dde3f0` | Primary text |
 | `--text-sec` | `#7e8fa8` | Secondary / body text |
 | `--text-muted` | `#3f4e66` | De-emphasized labels, metadata |
@@ -27,19 +32,38 @@ Space/astronomy dark theme. All tokens live in `frontend/src/index.css` as CSS c
 
 ---
 
+## Themes
+
+User-selectable via Settings → theme swatches. Each theme shifts the entire site: background, cards, borders, nav frosted glass, and ambient nebula glow. Semantic colors (`--accent-cyan`, `--accent-gold`, `--accent-purple`) stay fixed — badge and Wordle tile colors are unaffected.
+
+| Theme | `--bg` | `--accent` | Nebula glow | `data-theme` |
+|---|---|---|---|---|
+| Space Blue (default) | `#07090f` | `#4f9cf9` | cyan + purple | `""` (absent) |
+| Nebula | `#080610` | `#8b5cf6` | all purple | `nebula` |
+| Aurora | `#04090d` | `#22d3ee` | all cyan | `aurora` |
+| Solar | `#0d0800` | `#f59e0b` | all amber | `solar` |
+
+**Implementation:** `data-theme` attribute on `<html>`. Persisted in `localStorage` as `cosmo_theme`. Applied before React mounts in `main.tsx` to prevent flash on reload. Nav background uses `rgba(var(--bg-rgb), 0.92)` so the frosted glass tint follows the theme.
+
+---
+
 ## Typography
 
-**Font:** Inter (Google Fonts), fallback `system-ui, -apple-system, sans-serif`.
+**Body font:** Space Grotesk (Google Fonts), fallback `system-ui, -apple-system, sans-serif`.  
+**Display font:** Orbitron (Google Fonts) — used only for page titles, detail titles, auth titles, nav brand, stat values, section labels, Wordle tiles/keys.
 
-| Use | Size | Weight |
-|---|---|---|
-| Page title | `1.4rem` | 700 |
-| Detail title | `1.45rem` | 700 |
-| Auth title | `1.35rem` | 700 |
-| Body | `0.9rem` | 400 |
-| Article title | `0.95rem` | 600 |
-| Labels / badges | `0.72–0.75rem` | 600–700, uppercase |
-| Meta / muted | `0.78–0.82rem` | 400 |
+| Use | Font | Size | Weight |
+|---|---|---|---|
+| Page title | Orbitron | `1.3rem` | 700 |
+| Detail title | Orbitron | `1.3rem` | 700 |
+| Auth title | Orbitron | `1.2rem` | 700 |
+| Nav brand | Orbitron | `0.95rem` | 700 |
+| Stat values | Orbitron | `1.8rem` | 700 |
+| Section labels | Orbitron | `0.65rem` | 700 |
+| Body | Space Grotesk | `0.9rem` | 400 |
+| Article title | Space Grotesk | `0.95rem` | 600 |
+| Labels / badges | Space Grotesk | `0.68rem` | 700, uppercase |
+| Meta / muted | Space Grotesk | `0.78–0.82rem` | 500 |
 
 ---
 
@@ -72,13 +96,18 @@ Badges use translucent backgrounds — `rgba(r,g,b, 0.12)` fill + `rgba(r,g,b, 0
 
 ## Nav
 
-Sticky, `position: sticky; top: 0`. Background `rgba(7,9,15, 0.9)` with `backdrop-filter: blur(16px)` for frosted glass effect. Brand mark is a `22×22px` conic-gradient circle (accent→purple→cyan loop).
+Sticky, `position: sticky; top: 0`. Background `rgba(var(--bg-rgb), 0.92)` with `backdrop-filter: blur(20px)` for frosted glass — tint follows active theme. Border bottom uses `--border`.
 
 ---
 
 ## Background
 
-Flat dark `--bg`. No animated star fields or canvas effects — keeps the app fast and accessible. The dark blue-tinted palette carries the space aesthetic without visual noise.
+Flat dark `--bg` base. Two `body` pseudo-elements add ambient depth:
+
+- `body::before` — fixed nebula glow (three radial gradients). Default: cyan bottom-left, purple top-right, blue center. Overridden per theme: Nebula = all purple, Aurora = all cyan, Solar = all amber. `pointer-events: none`.
+- `body::after` — fixed star field (24 `radial-gradient` dots: 16 white, 1 theme-accent, 3 fixed-color, 4 extra white). Animates via `@keyframes twinkle` (6 s ease-in-out infinite). `pointer-events: none`.
+
+Both sit at `z-index: 0`; `.page` and `.auth-page` are `position: relative; z-index: 1`.
 
 ---
 

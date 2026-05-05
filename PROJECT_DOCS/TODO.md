@@ -129,6 +129,13 @@ Implementation order: storage → backend → frontend → extras
 
 ---
 
+## ADDITIONAL FEATURES
+
+- [x] Astronomical Events widget on Feed — `GET /astronomical/events?lat&lon`, curated annual event list + AstronomyAPI planet positions, horizontal scrollable card strip with Google Calendar URL links, browser geolocation + city-name geocoding via Nominatim, localStorage persistence. **Requires:** `vault_astronomy_app_id` + `vault_astronomy_app_secret` in `ansible/vault.yml` (user must add manually with `ansible-vault edit`).
+- [ ] Admin token tracking via OpenAI Admin API — replace DB-summed token counts in `GET /admin/stats` with live data from OpenAI usage API (`GET https://api.openai.com/v1/organization/usage/completions`). **Requires:** separate Admin API key (not the inference key) — obtain from platform.openai.com → API keys → create Admin key. Store as `vault_openai_admin_key` in `ansible/vault.yml`. Add `openai_admin_api_key: Optional[str]` to `backend/app/config.py`. In `admin.py`, if key present call OpenAI usage endpoint for current month, fall back to DB sum if absent or API error. Token counts then survive VM destruction.
+
+---
+
 ## VERIFICATION
 
 - [ ] Full deploy from clean state — single Ansible command, no manual steps

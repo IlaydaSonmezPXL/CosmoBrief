@@ -332,6 +332,8 @@ All of the following live in `ansible/vault.yml` and nowhere else:
 | `vault_db_admin_password` | PostgreSQL superuser password (postgres user) |
 | `vault_jwt_secret_key` | JWT signing secret (min 32 chars, random) |
 | `vault_openai_api_key` | OpenAI API key |
+| `vault_astronomy_app_id` | AstronomyAPI application ID |
+| `vault_astronomy_app_secret` | AstronomyAPI application secret |
 | `vault_admin_username` | Admin application account username |
 | `vault_admin_email` | Admin application account email |
 | `vault_admin_password_hash` | Pre-computed bcrypt hash of admin password |

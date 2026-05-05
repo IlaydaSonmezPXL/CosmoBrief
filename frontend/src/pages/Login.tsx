@@ -2,6 +2,7 @@ import { useState, FormEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { login } from "../api/auth";
+import EarthIcon from "../components/EarthIcon";
 
 export default function Login() {
   const { login: authLogin } = useAuth();
@@ -15,7 +16,7 @@ export default function Login() {
     setError("");
     try {
       const { data } = await login(username, password);
-      authLogin(data.access_token, data.user_id, data.role);
+      authLogin(data.access_token, data.user_id, data.role, data.username);
       navigate("/");
     } catch {
       setError("Invalid username or password.");
@@ -26,7 +27,7 @@ export default function Login() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-logo">
-          <span className="auth-logo-icon" />
+          <EarthIcon size={26} />
           <span className="auth-logo-text">Cosmo Brief</span>
         </div>
         <h1 className="auth-title">Welcome back</h1>

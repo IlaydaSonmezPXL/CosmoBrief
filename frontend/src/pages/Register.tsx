@@ -1,7 +1,9 @@
 import { useState, FormEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { register } from "../api/auth";
+import EarthIcon from "../components/EarthIcon";
 
 export default function Register() {
   const { login: authLogin } = useAuth();
@@ -16,10 +18,25 @@ export default function Register() {
     setError("");
     try {
       const { data } = await register(username, email, password);
-      authLogin(data.access_token, data.user_id, data.role);
+      authLogin(data.access_token, data.user_id, data.role, data.username);
       navigate("/");
-    } catch {
-      setError("Registration failed. Username or email may already exist.");
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response) {
+        const status = err.response.status;
+        const msg: string = err.response.data?.message ?? "";
+        if (status === 409) {
+          setError("Username or email already taken.");
+        } else if (status === 422) {
+          if (msg.includes("password")) setError("Password must be 6–128 characters.");
+          else if (msg.includes("username")) setError("Username must be 3–50 characters.");
+          else if (msg.includes("email")) setError("Enter a valid email address.");
+          else setError("Invalid input — check your details.");
+        } else {
+          setError("Registration failed. Please try again.");
+        }
+      } else {
+        setError("Registration failed. Please try again.");
+      }
     }
   }
 
@@ -27,7 +44,7 @@ export default function Register() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-logo">
-          <span className="auth-logo-icon" />
+          <EarthIcon size={26} />
           <span className="auth-logo-text">Cosmo Brief</span>
         </div>
         <h1 className="auth-title">Create account</h1>

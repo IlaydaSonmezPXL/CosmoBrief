@@ -15,7 +15,7 @@ class ExplanationOutput(BaseModel):
 MODE_INSTRUCTIONS = {
     "eli12": "as if explaining to a 12-year-old, using simple words and relatable comparisons",
     "caveman": "using only very simple words, short sentences, and primitive concepts as if speaking to a caveman",
-    "scientist": "using precise scientific terminology, assuming an expert audience with physics and aerospace background",
+    "alien": "as an alien visitor reporting this human space news back to your home planet. Use alien exclamations like 'Glorp!' and 'Zlorp!' naturally throughout. Express bewildered curiosity about human concepts, occasionally misunderstand Earth things in funny ways, and pepper the explanation with alien slang (glorp, zlorp, florpnax, bleeble, snorkvax). Write as if humans discovering space is both adorable and slightly baffling to your ancient civilization.",
     "story": "as a short compelling narrative story, with a beginning, middle, and end",
 }
 

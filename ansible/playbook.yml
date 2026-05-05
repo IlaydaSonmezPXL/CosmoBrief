@@ -47,3 +47,7 @@
       include_role:
         name: storage
         tasks_from: seed_admin.yml
+    - name: Seed wordle words
+      include_role:
+        name: storage
+        tasks_from: seed_wordle.yml

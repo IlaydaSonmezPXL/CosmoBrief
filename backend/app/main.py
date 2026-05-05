@@ -3,7 +3,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.routers import admin, articles, auth, explanations, health, ratings, users
+from app.routers import admin, articles, astronomical, auth, explanations, health, ratings, users, wordle
 
 app = FastAPI(title="Cosmo Brief API")
 
@@ -42,3 +42,5 @@ app.include_router(explanations.router)
 app.include_router(ratings.router)
 app.include_router(users.router)
 app.include_router(admin.router)
+app.include_router(wordle.router)
+app.include_router(astronomical.router)

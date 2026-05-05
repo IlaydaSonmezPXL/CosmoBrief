@@ -5,6 +5,7 @@ export interface TokenResponse {
   token_type: string;
   user_id: string;
   role: string;
+  username: string;
 }
 
 export function register(username: string, email: string, password: string) {

@@ -26,7 +26,7 @@ StateFilter = Optional[Literal["new", "read", "explained"]]
 FreshnessFilter = Optional[Literal["fresh", "aging", "archived"]]
 
 
-def apply_filters(stmt, state_filter, freshness_filter, state_alias, now):
+def apply_filters(stmt, state_filter, freshness_filter, state_alias, now, q=None):
     if state_filter:
         if state_filter == "new":
             stmt = stmt.where(state_alias.state.is_(None))
@@ -52,6 +52,16 @@ def apply_filters(stmt, state_filter, freshness_filter, state_alias, now):
                     ArticleCache.published_at.is_(None),
                 )
             )
+
+    if q:
+        pattern = f"%{q}%"
+        stmt = stmt.where(
+            or_(
+                ArticleCache.title.ilike(pattern),
+                ArticleCache.summary.ilike(pattern),
+            )
+        )
+
     return stmt
 
 
@@ -59,6 +69,7 @@ def apply_filters(stmt, state_filter, freshness_filter, state_alias, now):
 async def list_articles(
     state: StateFilter = None,
     freshness: FreshnessFilter = None,
+    q: Optional[str] = Query(None, max_length=200),
     limit: int = Query(20, ge=1, le=50),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
@@ -78,7 +89,7 @@ async def list_articles(
             state_alias.article_id == ArticleCache.article_id,
         ),
     )
-    stmt = apply_filters(stmt, state, freshness, state_alias, now)
+    stmt = apply_filters(stmt, state, freshness, state_alias, now, q=q)
 
     count_stmt = select(func.count()).select_from(ArticleCache).outerjoin(
         state_alias,
@@ -87,7 +98,7 @@ async def list_articles(
             state_alias.article_id == ArticleCache.article_id,
         ),
     )
-    count_stmt = apply_filters(count_stmt, state, freshness, state_alias, now)
+    count_stmt = apply_filters(count_stmt, state, freshness, state_alias, now, q=q)
     total = int((await db.execute(count_stmt)).scalar_one())
 
     stmt = (
@@ -170,9 +181,9 @@ async def get_article(
         if existing is None or explanation.version > existing.version:
             latest_by_mode[explanation.mode] = explanation
 
-    ExplanationModeKey = Literal["eli12", "caveman", "scientist", "story"]
+    ExplanationModeKey = Literal["eli12", "caveman", "alien", "story"]
     explanation_statuses: dict[ExplanationModeKey, ExplanationStatus] = {}
-    for mode in ("eli12", "caveman", "scientist", "story"):
+    for mode in ("eli12", "caveman", "alien", "story"):
         mode_key = cast(ExplanationModeKey, mode)
         latest = latest_by_mode.get(mode)
         if latest:
@@ -202,5 +213,3 @@ async def get_article(
         state=current_state,
         explanations=explanation_statuses,
     )
-
-

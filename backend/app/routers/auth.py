@@ -35,7 +35,7 @@ async def register_user(
     await db.refresh(user)
 
     token = create_access_token(user.user_id, user.role)
-    return TokenResponse(access_token=token, user_id=user.user_id, role=user.role)
+    return TokenResponse(access_token=token, user_id=user.user_id, role=user.role, username=user.username)
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -49,4 +49,4 @@ async def login_user(
         http_error(401, "invalid_credentials", "Invalid username or password.")
 
     token = create_access_token(user.user_id, user.role)
-    return TokenResponse(access_token=token, user_id=user.user_id, role=user.role)
+    return TokenResponse(access_token=token, user_id=user.user_id, role=user.role, username=user.username)

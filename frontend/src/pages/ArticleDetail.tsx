@@ -14,7 +14,7 @@ import {
 const MODES: Array<{ key: ExplanationMode; label: string }> = [
   { key: "eli12",      label: "Like I'm 12"   },
   { key: "caveman",    label: "Caveman"        },
-  { key: "scientist",  label: "Scientist"      },
+  { key: "alien",      label: "Alien"          },
   { key: "story",      label: "Story"          },
 ];
 
@@ -73,6 +73,15 @@ export default function ArticleDetail() {
     try {
       await rateExplanation(articleId, activeMode, explanation.version, rating);
       setExplanation({ ...explanation, rating });
+      if (rating === "down" && article) {
+        setArticle({
+          ...article,
+          explanations: {
+            ...article.explanations,
+            [activeMode]: { ...article.explanations[activeMode], needs_regeneration: true },
+          },
+        });
+      }
     } catch {
       // already rated or not latest — ignore
     }
@@ -90,7 +99,7 @@ export default function ArticleDetail() {
     }
   }
 
-if (loadingArticle) return (
+  if (loadingArticle) return (
     <div className="page"><Nav /><div className="container"><p className="loading-text">Loading…</p></div></div>
   );
   if (error || !article) return (
@@ -101,8 +110,8 @@ if (loadingArticle) return (
     <div className="page">
       <Nav />
       <div className="container" style={{ maxWidth: 780 }}>
-        <button className="btn btn-ghost" onClick={() => navigate(-1)} style={{ marginBottom: "1.25rem" }}>
-          ← Back
+        <button className="btn btn-back" onClick={() => navigate(-1)} style={{ marginBottom: "1.5rem" }}>
+          Back
         </button>
 
         <div className="detail-header">
@@ -112,8 +121,11 @@ if (loadingArticle) return (
             {article.published_at && ` · ${new Date(article.published_at).toLocaleDateString()}`}
             {` · `}
             <span style={{ textTransform: "capitalize" }}>{article.freshness}</span>
-            {` · `}
-            <span style={{ textTransform: "capitalize" }}>{article.state}</span>
+            {article.state !== "new" && (
+              <span style={{ marginLeft: "0.5rem" }}>
+                <span className="badge badge-read">read</span>
+              </span>
+            )}
           </p>
           {article.url && (
             <a href={article.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.85rem" }}>
@@ -160,9 +172,16 @@ if (loadingArticle) return (
             <p className="explanation-text">{explanation.text}</p>
             <div className="explanation-actions">
               {explanation.rating ? (
-                <span className="rating-display">
-                  Rated {explanation.rating === "up" ? "👍" : "👎"}
-                </span>
+                <>
+                  <span className="rating-display">
+                    Rated {explanation.rating === "up" ? "👍" : "👎"}
+                  </span>
+                  {explanation.rating === "down" && (
+                    <button className="btn btn-ghost" onClick={() => handleExplain(activeMode!)}>
+                      Regenerate
+                    </button>
+                  )}
+                </>
               ) : (
                 <>
                   <button className="btn" onClick={() => handleRate("up")}>👍</button>

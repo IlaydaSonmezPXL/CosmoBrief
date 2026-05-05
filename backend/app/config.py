@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = 60
     openai_api_key: str
     snapi_cache_ttl_minutes: int = 15
+    astronomy_app_id: str = ""
+    astronomy_app_secret: str = ""
 
     model_config = {"env_file": ".env"}
 

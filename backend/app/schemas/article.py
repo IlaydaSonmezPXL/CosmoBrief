@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 ArticleState = Literal["new", "read", "explained"]
 Freshness = Literal["fresh", "aging", "archived"]
-ExplanationMode = Literal["eli12", "caveman", "scientist", "story"]
+ExplanationMode = Literal["eli12", "caveman", "alien", "story"]
 RatingValue = Literal["up", "down"]
 
 

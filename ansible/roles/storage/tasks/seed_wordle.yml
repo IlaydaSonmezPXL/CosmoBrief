@@ -1,0 +1,33 @@
+---
+# Seeds space-themed 5-letter words into the wordle_words table.
+# Runs after Alembic creates the table. Idempotent via ON CONFLICT DO NOTHING.
+- name: Seed wordle words
+  community.postgresql.postgresql_query:
+    db: "{{ db_name }}"
+    query: >-
+      INSERT INTO wordle_words (word) VALUES
+      ('ORBIT'),('COMET'),('VENUS'),('PLUTO'),('TITAN'),
+      ('SPACE'),('SOLAR'),('PROBE'),('FLARE'),('ATLAS'),
+      ('LASER'),('LUNAR'),('RINGS'),('BLACK'),('EARTH'),
+      ('VESTA'),('CERES'),('JANUS'),('ELARA'),('ARIEL'),
+      ('STARS'),('MILKY'),('QUARK'),('DELTA'),('SIGMA'),
+      ('GAMMA'),('ALPHA'),('OMEGA'),('VIRGO'),('ORION'),
+      ('DRACO'),('HYDRA'),('LUPUS'),('LEPUS'),('MUSCA'),
+      ('NORMA'),('MENSA'),('LIBRA'),('ARIES'),('CETUS'),
+      ('INDUS'),('PYXIS'),('RIGEL'),('SPICA'),('DENEB'),
+      ('ALGOL'),('POLAR'),('MIZAR'),('ALCOR'),('DUBHE'),
+      ('MERAK'),('XENON'),('ARGON'),('MAVEN'),('EPOCH'),
+      ('NADIR'),('APSIS'),('LYRID'),('URSID'),('SWIFT'),
+      ('PHASE'),('TIDAL'),('LIGHT'),('RADIO'),('RADAR'),
+      ('PIXEL'),('OPTIC'),('NOVAE'),('LYRAE'),('MOONS'),
+      ('CLOUD'),('DWARF'),('BROWN'),('WHITE'),('GIANT'),
+      ('SUPER'),('WINDS'),('POLES'),('STORM'),('VAPOR'),
+      ('CRUST'),('MAGMA'),('GRAIN'),('AXIAL'),('FIELD'),
+      ('FORCE'),('HERTZ'),('TESLA'),('GAUSS'),('TYCHO'),
+      ('BRAHE'),('EULER'),('FERMI'),('CANIS')
+      ON CONFLICT (word) DO NOTHING
+  become_user: postgres
+  register: wordle_seed_result
+  failed_when:
+    - wordle_seed_result.failed
+    - "'relation \"wordle_words\" does not exist' not in (wordle_seed_result.msg | default(''))"

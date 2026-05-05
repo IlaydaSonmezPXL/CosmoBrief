@@ -21,14 +21,55 @@ All styling is class-based via `frontend/src/index.css`. Inline `style={{}}` is 
 ```tsx
 <nav className="nav">
   <Link className="nav-brand">
-    <span className="nav-brand-icon" />   {/* conic-gradient circle */}
+    <EarthIcon size={20} />
     Cosmo Brief
   </Link>
   <Link className="nav-link">…</Link>
-  <span className="nav-spacer" />         {/* pushes logout right */}
-  <button className="nav-logout">…</button>
+  <span className="nav-spacer" />   {/* pushes UserMenu right */}
+  <UserMenu />                      {/* replaces old nav-logout button */}
 </nav>
 ```
+
+## UserMenu
+
+Dropdown triggered by `[● username ▾]` button in the nav.
+
+```tsx
+<div className="user-menu-wrap">
+  <button className="user-menu-trigger [active]">
+    <span className="user-avatar">A</span>      {/* first initial, accent bg */}
+    <span className="user-menu-name">username</span>
+    <span className="user-menu-caret">▾</span>
+  </button>
+
+  <div className="user-menu-dropdown">
+    {/* view === "menu" */}
+    <div className="user-menu-head">…</div>
+    <div className="user-menu-body">
+      <button className="user-menu-item">⚙ Settings</button>
+      <button className="user-menu-item">◎ Account</button>
+    </div>
+    <div className="user-menu-footer">
+      <button className="user-menu-item signout">→ Sign out</button>
+    </div>
+
+    {/* view === "settings" | "account" */}
+    <div className="user-panel-header">
+      <button className="user-panel-back">←</button>
+      <span className="user-panel-title">Settings</span>
+    </div>
+    <div className="user-panel-body">
+      {/* theme swatches, wipe button, or account form */}
+    </div>
+  </div>
+</div>
+```
+
+Theme swatches: `.theme-swatch [.active]` — 26px colored circles; `.theme-label` for current name.  
+Panel inputs: `.user-panel-input` — styled like auth inputs but compact.  
+Panel buttons: `.btn.btn-sm` + `.btn-danger` (wipe) or `.btn-primary-sm` (save).  
+Success message: `.user-panel-success` (cyan text).  
+Meta rows: `.user-panel-meta-row` with `.user-panel-meta-key` + `.user-panel-meta-val`.
 
 ---
 
@@ -91,12 +132,24 @@ Disabled state: add `disabled` prop — CSS handles opacity + cursor.
 
 ```tsx
 <div className="filter-bar">
+  {/* Search input — flex-grows to fill available width, debounced 350 ms */}
+  <div className="filter-search">
+    <input
+      type="search"
+      className="filter-search-input"
+      placeholder="Search articles…"
+      value={searchInput}
+      onChange={(e) => setSearchInput(e.target.value)}
+    />
+  </div>
   <div className="filter-group">
     <span>Label</span>
     <select>…</select>
   </div>
 </div>
 ```
+
+Search fires server-side (`GET /articles?q=…`); ILIKE on `title` and `summary`. Resets to page 1 on each query change.
 
 ---
 
@@ -197,6 +250,106 @@ Disabled state: add `disabled` prop — CSS handles opacity + cursor.
   </div>
 )}
 ```
+
+---
+
+## Astronomical Events Widget
+
+Rendered in `Feed.tsx` between the filter bar and article list. Self-contained component.
+
+```tsx
+<div className="astro-section">
+  {/* Location bar */}
+  <div className="astro-location-bar">
+    <span className="astro-location-label">
+      <span className="astro-location-pin">◎</span>
+      Brussels, Belgium
+    </span>
+    <button className="btn btn-ghost astro-location-btn">Change</button>
+  </div>
+
+  {/* City input — shown when editMode === true */}
+  <form className="astro-location-form">
+    <input className="filter-search-input astro-city-input" type="text" placeholder="Enter city name…" />
+    <button className="btn btn-primary-sm" type="submit">Set</button>
+    {geoError && <span className="astro-geo-error">{geoError}</span>}
+  </form>
+
+  {/* Horizontal scroll strip */}
+  <div className="astro-strip">
+    <div className="astro-card astro-card--{type}">
+      <div className="astro-card-header">
+        <span className="astro-card-icon">☄</span>
+        <span className="astro-card-type">Meteor Shower</span>
+      </div>
+      <div className="astro-card-name">Perseid Meteor Shower</div>
+      <div className="astro-card-date">Aug 12, 2026</div>
+      <div className="astro-card-time">after midnight</div>
+      <div className="astro-card-direction">Look: <strong>NE</strong> · 42°</div>
+      <p className="astro-card-desc">Up to 100 meteors/hr…</p>
+      <a className="astro-card-cal" href="https://calendar.google.com/…" target="_blank">+ Calendar</a>
+    </div>
+  </div>
+</div>
+```
+
+Card type → left border accent:
+
+| `.astro-card--{type}` | Border color |
+|---|---|
+| `meteor_shower` | `--accent-cyan` |
+| `planet` | `--accent` |
+| `eclipse` | `--accent-gold` |
+| `solstice` | `--accent-purple` |
+| `moon` | `--text-sec` |
+
+---
+
+## Wordle Stats Modal
+
+Triggered by "Stats" `btn-ghost` button below keyboard. Auto-opens 1.5 s after game end.
+
+```tsx
+{showStats && (
+  <div className="wordle-stats-overlay" onClick={() => setShowStats(false)}>
+    <div className="wordle-stats-panel" onClick={(e) => e.stopPropagation()}>
+      <div className="wordle-stats-header">
+        <span className="wordle-stats-title">YOUR STATS</span>
+        <button className="wordle-stats-close">✕</button>
+      </div>
+
+      {/* 4-column stat grid */}
+      <div className="wordle-stats-grid">
+        <div className="wordle-stats-box">
+          <div className="wordle-stats-value">{n}</div>
+          <div className="wordle-stats-label">PLAYED</div>
+        </div>
+        {/* WIN % · STREAK · BEST */}
+      </div>
+
+      {/* Guess distribution */}
+      <div className="wordle-stats-dist-title">GUESS DISTRIBUTION</div>
+      <div className="wordle-stats-dist">
+        <div className="wordle-stats-bar-row">
+          <span className="wordle-stats-bar-num">3</span>
+          <div className="wordle-stats-bar-track">
+            <div className="wordle-stats-bar-fill [current]" style={{ width: "75%" }}>
+              <span className="wordle-stats-bar-count">12</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Share — only shown when gameOver */}
+      <div className="wordle-stats-footer">
+        <button className="btn btn-ghost">Share 🔗</button>
+      </div>
+    </div>
+  </div>
+)}
+```
+
+Bar width scales to max bar count (min 7% so zero-bars stay visible). `.current` class = today's guess count, highlighted with `--accent-cyan`. Overlay click-outside dismisses.
 
 ---
 
