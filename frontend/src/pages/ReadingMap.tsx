@@ -67,10 +67,18 @@ function separatePositions(positions: Array<{ x: number; y: number }>, minDistPx
         const dx = pts[j].x - pts[i].x;
         const dy = pts[j].y - pts[i].y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < minDistPx && dist > 0.001) {
+        if (dist < minDistPx) {
           const push = (minDistPx - dist) / 2;
-          const nx = dx / dist;
-          const ny = dy / dist;
+          let nx: number, ny: number;
+          if (dist < 0.001) {
+            // Coincident stars (e.g. both clamped to same corner) — use deterministic direction
+            const angle = ((i * 137.508 + j * 97.123) % 360) * (Math.PI / 180);
+            nx = Math.cos(angle);
+            ny = Math.sin(angle);
+          } else {
+            nx = dx / dist;
+            ny = dy / dist;
+          }
           pts[i].x = Math.max(xMin, Math.min(xMax, pts[i].x - nx * push));
           pts[i].y = Math.max(yMin, Math.min(yMax, pts[i].y - ny * push));
           pts[j].x = Math.max(xMin, Math.min(xMax, pts[j].x + nx * push));
@@ -130,7 +138,7 @@ export default function ReadingMap() {
 
   const stars: StarData[] = useMemo(() => {
     const rawPositions = topics.map((t) => getStarPos(t.tag));
-    const separated = separatePositions(rawPositions, 120, 100);
+    const separated = separatePositions(rawPositions, 140, 150);
     return topics.map((t, idx) => {
       const pos = separated[idx];
       const mag = getMag(t.article_count);
