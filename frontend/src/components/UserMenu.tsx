@@ -4,24 +4,7 @@ import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { getMe, updateMe, wipeUserData, type UserMe } from "../api/users";
 
-type Theme = "default" | "nebula" | "aurora" | "solar";
 type View = "menu" | "settings" | "account";
-
-const THEMES: { id: Theme; label: string; color: string }[] = [
-  { id: "default", label: "Space Blue", color: "#4f9cf9" },
-  { id: "nebula",  label: "Nebula",     color: "#8b5cf6" },
-  { id: "aurora",  label: "Aurora",     color: "#22d3ee" },
-  { id: "solar",   label: "Solar",      color: "#f59e0b" },
-];
-
-function applyTheme(theme: Theme) {
-  localStorage.setItem("cosmo_theme", theme);
-  document.documentElement.setAttribute("data-theme", theme === "default" ? "" : theme);
-}
-
-function currentTheme(): Theme {
-  return (localStorage.getItem("cosmo_theme") as Theme) || "default";
-}
 
 // ── Menu main view ──────────────────────────────────────────────────────────
 
@@ -67,15 +50,9 @@ interface SettingsViewProps {
 }
 
 function SettingsView({ onBack, userId }: SettingsViewProps) {
-  const [theme, setThemeState] = useState<Theme>(currentTheme);
   const [confirmWipe, setConfirmWipe] = useState(false);
   const [wiping, setWiping] = useState(false);
   const [wipeError, setWipeError] = useState("");
-
-  function handleTheme(t: Theme) {
-    applyTheme(t);
-    setThemeState(t);
-  }
 
   async function handleWipe() {
     setWiping(true);
@@ -104,22 +81,6 @@ function SettingsView({ onBack, userId }: SettingsViewProps) {
         <span className="user-panel-title">Settings</span>
       </div>
       <div className="user-panel-body">
-        <div className="user-panel-section">
-          <div className="user-panel-label">Theme</div>
-          <div className="theme-swatches">
-            {THEMES.map((t) => (
-              <button
-                key={t.id}
-                className={`theme-swatch${theme === t.id ? " active" : ""}`}
-                style={{ background: t.color }}
-                title={t.label}
-                onClick={() => handleTheme(t.id)}
-              />
-            ))}
-          </div>
-          <div className="theme-label">{THEMES.find((t) => t.id === theme)?.label}</div>
-        </div>
-
         <div className="user-panel-section">
           <div className="user-panel-label">Data</div>
           {!confirmWipe ? (

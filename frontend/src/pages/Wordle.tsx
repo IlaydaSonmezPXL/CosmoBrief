@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import Nav from "../components/Nav";
 import { getWordleWords } from "../api/wordle";
 import { useAuth } from "../context/AuthContext";
+import EditorialShell from "../components/EditorialShell";
 
 const WORD_LENGTH = 5;
 const MAX_GUESSES = 6;
@@ -42,6 +42,10 @@ function todayKey(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function dateKey(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
 function getYesterday(): string {
   const d = new Date();
   d.setDate(d.getDate() - 1);
@@ -51,6 +55,15 @@ function getYesterday(): string {
 function pickDailyWord(words: string[]): string {
   const dayIndex = Math.floor((Date.now() - EPOCH) / 86400000);
   return words[dayIndex % words.length];
+}
+
+function puzzleNumberFor(date: Date): number {
+  const dayIndex = Math.floor((date.getTime() - EPOCH) / 86_400_000);
+  return dayIndex + 1;
+}
+
+function dayIndexFor(date: Date): number {
+  return Math.floor((date.getTime() - EPOCH) / 86_400_000);
 }
 
 function evaluateGuess(guess: string, answer: string): TileState[] {
@@ -99,6 +112,18 @@ function loadGameState(userId: string): GameState | null {
   try {
     const raw = localStorage.getItem(`wordle_${userId}_${todayKey()}`);
     return raw ? (JSON.parse(raw) as GameState) : null;
+  } catch {
+    return null;
+  }
+}
+
+function loadGameResult(userId: string, key: string): string | null {
+  try {
+    const raw = localStorage.getItem(`wordle_${userId}_${key}`);
+    if (!raw) return null;
+    const state = JSON.parse(raw) as GameState;
+    if (!state.gameOver) return null;
+    return state.won ? `${state.guesses.length}/6` : "X/6";
   } catch {
     return null;
   }
@@ -185,7 +210,6 @@ export default function Wordle() {
   const [revealingRow, setRevealingRow] = useState<number | null>(null);
 
   const [stats, setStats] = useState<StatsData>({ ...EMPTY_STATS });
-  const [showStats, setShowStats] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -247,24 +271,22 @@ export default function Wordle() {
       const isWin = result.every((r) => r === "correct");
       const isLoss = !isWin && newGuesses.length >= MAX_GUESSES;
 
-      if (isWin) {
-        setWon(true);
-        setGameOver(true);
-        setMessage("Stellar! Come back tomorrow for a new word.");
-        saveGameState({ guesses: newGuesses, results: newResults, gameOver: true, won: true, date: todayKey() }, user!.userId);
-        const newStats = updateStats(stats, true, newGuesses.length);
-        setStats(newStats);
-        saveStats(newStats, user!.userId);
-        setTimeout(() => setShowStats(true), 1500);
-      } else if (isLoss) {
-        setGameOver(true);
-        setMessage(`The word was ${answer}. Try again tomorrow!`);
-        saveGameState({ guesses: newGuesses, results: newResults, gameOver: true, won: false, date: todayKey() }, user!.userId);
-        const newStats = updateStats(stats, false, newGuesses.length);
-        setStats(newStats);
-        saveStats(newStats, user!.userId);
-        setTimeout(() => setShowStats(true), 1500);
-      } else {
+        if (isWin) {
+          setWon(true);
+          setGameOver(true);
+          setMessage("Stellar! Come back tomorrow for a new word.");
+          saveGameState({ guesses: newGuesses, results: newResults, gameOver: true, won: true, date: todayKey() }, user!.userId);
+          const newStats = updateStats(stats, true, newGuesses.length);
+          setStats(newStats);
+          saveStats(newStats, user!.userId);
+        } else if (isLoss) {
+          setGameOver(true);
+          setMessage(`The word was ${answer}. Try again tomorrow!`);
+          saveGameState({ guesses: newGuesses, results: newResults, gameOver: true, won: false, date: todayKey() }, user!.userId);
+          const newStats = updateStats(stats, false, newGuesses.length);
+          setStats(newStats);
+          saveStats(newStats, user!.userId);
+        } else {
         saveGameState({ guesses: newGuesses, results: newResults, gameOver: false, won: false, date: todayKey() }, user!.userId);
       }
     } else if (key === "⌫" || key === "Backspace") {
@@ -303,12 +325,12 @@ export default function Wordle() {
 
   function getTileClass(rowIdx: number, colIdx: number): string {
     const state = getTileState(rowIdx, colIdx);
-    const base = "wordle-tile";
+    const base = "cipher-tile";
     const isRevealing = revealingRow === rowIdx;
-    const revealed = isRevealing ? " revealed" : "";
-    if (state === "empty") return base;
-    if (state === "filled") return `${base} filled`;
-    return `${base} ${state}${revealed}`;
+    const flip = isRevealing ? " flipping" : "";
+    if (state === "empty") return `${base} empty`;
+    if (state === "filled") return `${base} typing`;
+    return `${base} ${state}${flip}`;
   }
 
   function getTileStyle(rowIdx: number, colIdx: number): React.CSSProperties {
@@ -357,7 +379,7 @@ export default function Wordle() {
   function getKeyClass(key: string): string {
     const state = keyStates[key] ?? "unused";
     const wide = key === "ENTER" || key === "⌫" ? " wide" : "";
-    return `wordle-key${wide} ${state !== "unused" ? state : ""}`.trim();
+    return `cipher-key${wide} ${state !== "unused" ? state : ""}`.trim();
   }
 
   const distValues = [1, 2, 3, 4, 5, 6].map((k) => stats.distribution[k] ?? 0);
@@ -369,125 +391,174 @@ export default function Wordle() {
     { value: getDisplayStreak(stats), label: "Current Streak" },
     { value: stats.maxStreak, label: "Max Streak" },
   ];
+  const todayPuzzleNo = puzzleNumberFor(new Date());
+  const statusLabel = gameOver ? (won ? "Solved" : "Missed") : "Open";
+  const statusClass = gameOver ? (won ? "won" : "lost") : "open";
+  const pastPuzzles = user && words.length > 0
+    ? Array.from({ length: 5 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = dateKey(d);
+      const dayIndex = dayIndexFor(d);
+      const idx = ((dayIndex % words.length) + words.length) % words.length;
+      const word = words[idx] ?? "";
+      const result = loadGameResult(user.userId, key);
+      return {
+        key,
+        puzzleNo: puzzleNumberFor(d),
+        word,
+        result,
+        dateLabel: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      };
+    })
+    : [];
 
-  if (loading) return (
-    <div className="page"><Nav /><div className="container"><p className="loading-text">Loading word list…</p></div></div>
-  );
-  if (error) return (
-    <div className="page"><Nav /><div className="container"><p className="error-text">{error}</p></div></div>
-  );
+  if (loading || error) {
+    return (
+      <EditorialShell>
+        <div className="cipher-root">
+          <div className="cipher-head">
+            <div className="cipher-head-inner">
+              <div className="cipher-title">Daily <em>Cipher</em></div>
+              <div className="cipher-rule" />
+              <div className="cipher-deck">Guess the five-letter space word.</div>
+            </div>
+          </div>
+          <div className="cipher-main">
+            <div className="cipher-stage">
+              <div className="cipher-msg">{error || "Loading word list…"}</div>
+            </div>
+          </div>
+        </div>
+      </EditorialShell>
+    );
+  }
 
   return (
-    <div className="page">
-      <Nav />
+    <EditorialShell>
+      <div className="cipher-root">
+        <div className="cipher-head">
+          <div className="cipher-head-inner">
+            <div className="cipher-title">Daily <em>Cipher</em></div>
+            <div className="cipher-rule" />
+            <div className="cipher-deck">
+              Guess the five-letter space word · <strong>{MAX_GUESSES}</strong> attempts · <strong>{words.length}</strong> words in rotation
+            </div>
+          </div>
+        </div>
 
-      {showStats && (
-        <div className="wordle-stats-overlay" onClick={() => setShowStats(false)}>
-          <div className="wordle-stats-panel" onClick={(e) => e.stopPropagation()}>
-            <div className="wordle-stats-header">
-              <span className="wordle-stats-title">YOUR STATS</span>
-              <button className="wordle-stats-close" onClick={() => setShowStats(false)}>✕</button>
+        <div className="cipher-main">
+          <div className="cipher-stage">
+            <div className="cipher-stage-meta">
+              <span>Puzzle #{String(todayPuzzleNo).padStart(4, "0")}</span>
+              <span className="dot">·</span>
+              <span className={`status ${statusClass}`}>{statusLabel}</span>
             </div>
 
-            <div className="wordle-stats-grid">
-              {statBoxes.map(({ value, label }) => (
-                <div key={label} className="wordle-stats-box">
-                  <div className="wordle-stats-value">{value}</div>
-                  <div className="wordle-stats-label">{label}</div>
+            <div className="cipher-msg">{message || " "}</div>
+
+            <div className="cipher-board">
+              {Array.from({ length: MAX_GUESSES }, (_, rowIdx) => (
+                <div
+                  key={rowIdx}
+                  className={`cipher-row${shakingRow === rowIdx ? " shake" : ""}`}
+                >
+                  {Array.from({ length: WORD_LENGTH }, (_, colIdx) => (
+                    <div
+                      key={colIdx}
+                      className={getTileClass(rowIdx, colIdx)}
+                      style={getTileStyle(rowIdx, colIdx)}
+                    >
+                      {getTileChar(rowIdx, colIdx)}
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
 
-            <div className="wordle-stats-dist-title">GUESS DISTRIBUTION</div>
-            <div className="wordle-stats-dist">
+            <div className="cipher-keyboard">
+              {KEYBOARD_ROWS.map((row, i) => (
+                <div key={i} className="cipher-kb-row">
+                  {row.map((key) => (
+                    <button
+                      key={key}
+                      className={getKeyClass(key)}
+                      onClick={() => handleKey(key === "⌫" ? "Backspace" : key === "ENTER" ? "Enter" : key)}
+                    >
+                      {key}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="cipher-side">
+            <div className="cipher-clue">
+              <div className="cb-kicker naked">Editor's clue</div>
+              <div className="cipher-clue-text">
+                {gameOver
+                  ? won
+                    ? "A stellar solve — your orbit is finely tuned."
+                    : "The cosmos keeps its secrets for now. Return tomorrow."
+                  : "Five letters, one orbit. The answer hides in plain starlight."}
+              </div>
+              <span className="cipher-clue-foot">— The Editor</span>
+            </div>
+
+            <div>
+              <h4>Stats</h4>
+              <div className="cipher-stats-grid">
+                {statBoxes.map(({ value, label }) => (
+                  <div key={label}>
+                    <strong>{value}</strong>
+                    <span>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="cipher-distribution">
+              <h4>Guess distribution</h4>
               {[1, 2, 3, 4, 5, 6].map((n) => {
                 const count = stats.distribution[n] ?? 0;
                 const pct = Math.max((count / maxDist) * 100, 7);
                 const isCurrent = gameOver && won && guesses.length === n;
                 return (
-                  <div key={n} className="wordle-stats-bar-row">
-                    <span className="wordle-stats-bar-num">{n}</span>
-                    <div className="wordle-stats-bar-track">
-                      <div
-                        className={`wordle-stats-bar-fill${isCurrent ? " current" : ""}`}
-                        style={{ width: `${pct}%` }}
-                      >
-                        <span className="wordle-stats-bar-count">{count}</span>
-                      </div>
+                  <div key={n} className="cipher-dist-row">
+                    <span className="dn">{n}</span>
+                    <div className="db">
+                      <span style={{ width: `${pct}%`, opacity: isCurrent ? 1 : 0.8 }}>{count}</span>
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            {gameOver && (
-              <div className="wordle-stats-footer">
-                <button className="btn btn-ghost" onClick={handleShare}>
-                  {copied ? "Copied! ✓" : "Share 🔗"}
-                </button>
+            <div className="cipher-share">
+              <button className="cipher-share-btn" onClick={handleShare} disabled={!gameOver}>
+                {copied ? "Copied ✓" : "Share"}
+              </button>
+              <span className="cipher-share-note">{gameOver ? "Share your grid" : "Solve today to share"}</span>
+            </div>
+
+            {pastPuzzles.length > 0 && (
+              <div className="cipher-archive">
+                <h4>Past puzzles</h4>
+                <div className="cipher-archive-list">
+                  {pastPuzzles.map((p) => (
+                    <div key={p.key} className="cipher-archive-row">
+                      <div className="cipher-archive-num">No. {String(p.puzzleNo).padStart(4, "0")}</div>
+                      <div className="cipher-archive-word">{p.word.split("").join(" ")}</div>
+                      <div className="cipher-archive-result">{p.result ?? "—"}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
         </div>
-      )}
-
-      <div className="container" style={{ maxWidth: 600, textAlign: "center" }}>
-        <div className="page-header" style={{ textAlign: "center" }}>
-          <h1 className="page-title">Space Wordle</h1>
-          <p className="page-subtitle">Guess the 5-letter space word · {MAX_GUESSES} attempts</p>
-        </div>
-
-        {message && (
-          <div className={`wordle-message ${won ? "win" : "lose"}`}>
-            {message}
-          </div>
-        )}
-
-        <div className="wordle-board">
-          {Array.from({ length: MAX_GUESSES }, (_, rowIdx) => (
-            <div
-              key={rowIdx}
-              className={`wordle-row${shakingRow === rowIdx ? " shake" : ""}`}
-            >
-              {Array.from({ length: WORD_LENGTH }, (_, colIdx) => (
-                <div
-                  key={colIdx}
-                  className={getTileClass(rowIdx, colIdx)}
-                  style={getTileStyle(rowIdx, colIdx)}
-                >
-                  {getTileChar(rowIdx, colIdx)}
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-
-        <div className="wordle-keyboard">
-          {KEYBOARD_ROWS.map((row, i) => (
-            <div key={i} className="wordle-keyboard-row">
-              {row.map((key) => (
-                <button
-                  key={key}
-                  className={getKeyClass(key)}
-                  onClick={() => handleKey(key === "⌫" ? "Backspace" : key === "ENTER" ? "Enter" : key)}
-                >
-                  {key}
-                </button>
-              ))}
-            </div>
-          ))}
-        </div>
-
-        <div className="wordle-controls">
-          <button className="btn btn-ghost" onClick={() => setShowStats(true)}>
-            Stats
-          </button>
-        </div>
-
-        <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.5rem" }}>
-          New word every day · {words.length} space words in rotation
-        </p>
       </div>
-    </div>
+    </EditorialShell>
   );
 }

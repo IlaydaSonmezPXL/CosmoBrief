@@ -7,7 +7,7 @@ from app.dependencies import require_admin
 from app.models.explanation import Explanation
 from app.models.topic_tag import TopicTag
 from app.models.user import User
-from app.schemas.admin import AdminStatsResponse, AdminTopicCount
+from app.schemas.admin import AdminStatsResponse, AdminTopicCount, AdminUserSummary, AdminUsersResponse
 
 router = APIRouter(tags=["admin"])
 
@@ -67,3 +67,28 @@ async def admin_stats(
         top_topics=top_topics,
         ratings={"thumbs_up": int(thumbs_up), "thumbs_down": int(thumbs_down)},
     )
+
+
+@router.get("/admin/users", response_model=AdminUsersResponse)
+async def admin_users(
+    db: AsyncSession = Depends(get_db),
+    _current_user=Depends(require_admin),
+) -> AdminUsersResponse:
+    result = await db.execute(
+        select(User, func.count(Explanation.explanation_id))
+        .outerjoin(Explanation, Explanation.user_id == User.user_id)
+        .group_by(User.user_id)
+        .order_by(User.created_at.desc())
+    )
+    users = [
+        AdminUserSummary(
+            user_id=user.user_id,
+            username=user.username,
+            email=user.email,
+            role=user.role,
+            created_at=user.created_at,
+            explanation_count=int(count),
+        )
+        for user, count in result.all()
+    ]
+    return AdminUsersResponse(users=users)

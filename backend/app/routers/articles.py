@@ -12,13 +12,17 @@ from app.dependencies import get_current_user, http_error
 from app.models.article_cache import ArticleCache
 from app.models.article_state import ArticleState
 from app.models.explanation import Explanation
+from app.models.topic_tag import TopicTag
 from app.schemas.article import (
     ArticleDetailResponse,
     ArticleListResponse,
+    ArticleTopicsResponse,
     ArticleSummary,
     ExplanationStatus,
+    TopicCount,
 )
 from app.services.snapi_client import SnapiUnavailable, classify_freshness, ensure_cache_fresh
+from app.services.state_machine import validate_transition
 
 router = APIRouter(tags=["articles"])
 
@@ -26,7 +30,14 @@ StateFilter = Optional[Literal["new", "read", "explained"]]
 FreshnessFilter = Optional[Literal["fresh", "aging", "archived"]]
 
 
-def apply_filters(stmt, state_filter, freshness_filter, state_alias, now, q=None):
+def apply_filters(stmt, state_filter, freshness_filter, state_alias, now, q=None, topic_filter=None):
+    if topic_filter:
+        stmt = stmt.where(
+            ArticleCache.article_id.in_(
+                select(TopicTag.article_id).where(TopicTag.tag == topic_filter)
+            )
+        )
+
     if state_filter:
         if state_filter == "new":
             stmt = stmt.where(state_alias.state.is_(None))
@@ -65,10 +76,27 @@ def apply_filters(stmt, state_filter, freshness_filter, state_alias, now, q=None
     return stmt
 
 
+@router.get("/articles/topics", response_model=ArticleTopicsResponse)
+async def list_article_topics(
+    db: AsyncSession = Depends(get_db),
+    _current_user=Depends(get_current_user),
+) -> ArticleTopicsResponse:
+    rows = await db.execute(
+        select(TopicTag.tag, func.count(TopicTag.article_id.distinct()).label("cnt"))
+        .group_by(TopicTag.tag)
+        .order_by(func.count(TopicTag.article_id.distinct()).desc())
+        .limit(20)
+    )
+    return ArticleTopicsResponse(
+        topics=[TopicCount(tag=tag, count=int(cnt)) for tag, cnt in rows.all()]
+    )
+
+
 @router.get("/articles", response_model=ArticleListResponse)
 async def list_articles(
     state: StateFilter = None,
     freshness: FreshnessFilter = None,
+    topic: Optional[str] = Query(None, max_length=100),
     q: Optional[str] = Query(None, max_length=200),
     limit: int = Query(20, ge=1, le=50),
     offset: int = Query(0, ge=0),
@@ -89,7 +117,7 @@ async def list_articles(
             state_alias.article_id == ArticleCache.article_id,
         ),
     )
-    stmt = apply_filters(stmt, state, freshness, state_alias, now, q=q)
+    stmt = apply_filters(stmt, state, freshness, state_alias, now, q=q, topic_filter=topic)
 
     count_stmt = select(func.count()).select_from(ArticleCache).outerjoin(
         state_alias,
@@ -98,7 +126,7 @@ async def list_articles(
             state_alias.article_id == ArticleCache.article_id,
         ),
     )
-    count_stmt = apply_filters(count_stmt, state, freshness, state_alias, now, q=q)
+    count_stmt = apply_filters(count_stmt, state, freshness, state_alias, now, q=q, topic_filter=topic)
     total = int((await db.execute(count_stmt)).scalar_one())
 
     stmt = (
@@ -154,6 +182,8 @@ async def get_article(
     )
     state_row = state_result.scalar_one_or_none()
     if state_row is None:
+        if not validate_transition(None, "read"):
+            http_error(409, "invalid_transition", "Cannot transition article to read state.")
         state_row = ArticleState(
             user_id=current_user.user_id,
             article_id=article_id,

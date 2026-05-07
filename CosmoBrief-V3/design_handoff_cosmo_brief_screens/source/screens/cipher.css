@@ -1,0 +1,112 @@
+/* Daily Cipher styles */
+.cipher-root { min-height: 1000px; }
+
+.cipher-head { padding: 4rem 2.5rem 3rem; border-bottom: 1px solid var(--rule); text-align: center; }
+.cipher-head-inner { max-width: 50rem; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+.cipher-head-inner .cb-section-num { justify-content: center; }
+.cipher-title { font-family: var(--serif); font-weight: 500; font-size: clamp(2.4rem, 4.2vw, 3.8rem); line-height: 1.05; letter-spacing: -0.025em; max-width: 22ch; text-wrap: balance; }
+.cipher-title em { color: var(--accent); font-style: italic; font-weight: 400; }
+.cipher-rule { width: 60px; height: 2px; background: var(--accent); margin: 0.6rem auto; }
+.cipher-deck { font-family: var(--serif); font-style: italic; font-size: 1.05rem; line-height: 1.55; color: var(--paper-dim); }
+.cipher-deck strong { color: var(--paper); font-style: normal; font-weight: 500; font-family: var(--mono); font-size: 0.95rem; letter-spacing: 0.06em; }
+
+.cipher-main { display: grid; grid-template-columns: 1.3fr 1fr; gap: 0; border-bottom: 1px solid var(--rule); }
+.cipher-stage { padding: 3rem 2.5rem; border-right: 1px solid var(--rule); display: flex; flex-direction: column; gap: 1.6rem; align-items: center; }
+.cipher-stage-meta { display: flex; align-items: center; gap: 0.8rem; font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mute); }
+.cipher-stage-meta .dot { color: #4a4a55; }
+.cipher-stage-meta .status.won { color: var(--accent); }
+.cipher-stage-meta .status.open { color: var(--gold); }
+
+.cipher-board { display: flex; flex-direction: column; gap: 6px; }
+.cipher-row { display: flex; gap: 6px; }
+.cipher-tile {
+  width: 64px; height: 64px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--serif); font-style: italic; font-weight: 600;
+  font-size: 1.9rem; text-transform: uppercase;
+  border: 1.5px solid var(--rule);
+  background: var(--ink-soft); color: var(--paper-dim);
+  transition: all 0.2s;
+}
+.cipher-tile.typing { border-color: var(--paper-dim); color: var(--paper); animation: cb-pop 0.15s ease-out; }
+.cipher-tile.empty { color: transparent; }
+.cipher-tile.correct { background: var(--accent); border-color: var(--accent); color: var(--ink); }
+.cipher-tile.present { background: rgba(212,166,74,0.18); border-color: var(--gold); color: var(--gold); }
+.cipher-tile.absent { background: var(--ink); border-color: var(--rule); color: var(--mute); }
+@keyframes cb-pop { 0% { transform: scale(0.85); } 100% { transform: scale(1); } }
+
+.cipher-input-row { display: flex; gap: 0.6rem; align-items: stretch; width: 100%; max-width: 420px; }
+.cipher-input {
+  flex: 1; background: transparent;
+  border: 1px solid var(--rule);
+  padding: 0.85rem 1rem;
+  color: var(--paper); font-family: var(--serif); font-style: italic;
+  font-size: 1.1rem; outline: none;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  transition: border-color 0.15s;
+}
+.cipher-input:focus { border-color: var(--accent); }
+.cipher-input::placeholder { color: #4a4a55; font-style: italic; letter-spacing: normal; text-transform: none; }
+.cipher-submit {
+  background: var(--accent); color: var(--ink);
+  border: none; padding: 0.85rem 1.2rem;
+  font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.14em; text-transform: uppercase;
+  border-radius: 999px; cursor: pointer; transition: all 0.15s;
+}
+.cipher-submit:hover:not(:disabled) { background: var(--accent-deep); color: var(--paper); }
+.cipher-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.cipher-keyboard { display: flex; flex-direction: column; gap: 6px; margin-top: 1rem; }
+.cipher-kb-row { display: flex; gap: 5px; justify-content: center; }
+.cipher-key {
+  min-width: 36px; height: 48px; padding: 0 0.5rem;
+  background: var(--ink-soft); border: 1px solid var(--rule);
+  color: var(--paper); font-family: var(--mono); font-weight: 500;
+  font-size: 0.82rem; letter-spacing: 0.05em; text-transform: uppercase;
+  cursor: pointer; transition: all 0.12s;
+}
+.cipher-key.wide { min-width: 64px; font-size: 0.66rem; letter-spacing: 0.12em; }
+.cipher-key:hover { background: var(--ink-softer); border-color: var(--paper-dim); }
+.cipher-key.correct { background: var(--accent); border-color: var(--accent); color: var(--ink); }
+.cipher-key.present { background: rgba(212,166,74,0.25); border-color: var(--gold); color: var(--gold); }
+.cipher-key.absent { background: var(--ink); border-color: var(--rule); color: var(--mute); opacity: 0.6; }
+
+.cipher-side { padding: 3rem 2.5rem; display: flex; flex-direction: column; gap: 2rem; }
+.cipher-side h4 { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mute); margin-bottom: 0.9rem; font-weight: 500; }
+
+.cipher-clue { background: var(--ink-soft); border: 1px solid var(--rule); padding: 1.4rem; }
+.cipher-clue-text { font-family: var(--serif); font-style: italic; font-size: 1.25rem; line-height: 1.45; margin-top: 0.8rem; color: var(--paper); text-wrap: balance; }
+.cipher-clue-foot { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute); display: block; margin-top: 0.9rem; }
+
+.cipher-stats { padding-top: 0; }
+.cipher-stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.2rem; padding-bottom: 1.4rem; border-bottom: 1px solid var(--rule); }
+.cipher-stat-grid > div { display: flex; flex-direction: column; gap: 0.3rem; }
+.cipher-stat-grid strong { font-family: var(--serif); font-style: italic; font-weight: 500; font-size: 1.7rem; line-height: 1; }
+.cipher-stat-grid span { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute); }
+
+.cipher-distribution { margin-top: 1.4rem; }
+.cipher-distribution h5 { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mute); margin-bottom: 0.7rem; font-weight: 500; }
+.cipher-dist-row { display: grid; grid-template-columns: 20px 1fr; gap: 0.7rem; align-items: center; padding: 3px 0; }
+.cipher-dist-row .dn { font-family: var(--mono); font-size: 0.78rem; color: var(--paper-dim); }
+.cipher-dist-row .db { background: var(--rule); height: 22px; border-radius: 2px; overflow: hidden; }
+.cipher-dist-row .db > span { display: flex; align-items: center; padding: 0 0.5rem; height: 100%; background: var(--accent); color: var(--ink); font-family: var(--mono); font-size: 0.72rem; font-weight: 500; }
+
+.cipher-archive ul { list-style: none; }
+.cipher-archive li {
+  display: grid; grid-template-columns: 80px 1fr 70px;
+  gap: 0.7rem; align-items: center;
+  padding: 0.7rem 0; border-bottom: 1px solid var(--rule);
+  font-family: var(--mono); font-size: 0.74rem;
+}
+.cipher-archive .num { color: var(--mute); letter-spacing: 0.14em; text-transform: uppercase; }
+.cipher-archive .word { font-family: var(--serif); font-style: italic; font-size: 1.05rem; letter-spacing: 0.18em; color: var(--paper); }
+.cipher-archive .res { text-align: right; font-weight: 500; }
+.cipher-archive .res.ok { color: var(--accent); }
+.cipher-archive .res.miss { color: var(--gold); }
+.cipher-archive-more { display: inline-block; margin-top: 1rem; font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--paper-dim); cursor: pointer; }
+.cipher-archive-more:hover { color: var(--accent); }
+
+.cipher-share { display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start; padding-top: 1.5rem; border-top: 1px solid var(--rule); }
+.cipher-share-btn { background: var(--accent); color: var(--ink); border: none; border-radius: 999px; padding: 0.85rem 1.4rem; font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; cursor: pointer; transition: all 0.15s; }
+.cipher-share-btn:hover { transform: translateX(3px); background: var(--accent-deep); color: var(--paper); }
+.cipher-share span { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mute); }

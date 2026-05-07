@@ -1,6 +1,6 @@
 # Cosmo Brief
 
-A personal space news companion. Articles are pulled from the [Spaceflight News API](https://api.spaceflightnewsapi.net/v4/) and move through a state machine driven by user interaction. The central feature is requesting AI-generated explanations of articles in four different tones — each explanation is stored, versioned, and rated. User history accumulates into a personal topic map. An admin role provides system-wide usage statistics.
+A personal space news companion with a full editorial magazine interface. Articles are pulled from the [Spaceflight News API](https://api.spaceflightnewsapi.net/v4/) and move through a state machine driven by user interaction. The core feature is requesting AI-generated explanations of articles in four tones — each is stored, versioned, and rated. Reading history accumulates into a personal topic constellation. An admin role provides system-wide usage statistics. Every screen uses the shared `Cosmo·Brief` editorial chrome (masthead, brand bar, sticky tab nav, footer).
 
 ---
 
@@ -145,9 +145,21 @@ Storage health is verified through the backend health endpoint, which executes a
 | Extra | Points | Description |
 |---|---|---|
 | EXTRA1 | 1 | **Token-based authentication.** JWT issued on login, verified on all protected routes. Credentials stored in PostgreSQL, never hardcoded. |
-| EXTRA2 | 1 | **Role-based authorization.** Two roles: `user` and `admin`. `GET /admin/stats` is backend-enforced for admin only. Non-admin users receive HTTP 403. |
+| EXTRA2 | 1 | **Role-based authorization.** Two roles: `user` and `admin`. `GET /admin/stats` and `GET /admin/users` are backend-enforced for admin only. Non-admin users receive HTTP 403. |
 | EXTRA3 | 1 | **Central logging.** rsyslog on the storage VM collects logs from all three tiers. Log source is identifiable by hostname. Configured entirely via Ansible. |
 | EXTRA4 | 3 | **AWS Academy deployment.** Same Ansible roles, separate inventory. Frontend in public subnet, backend and storage in private subnet. ProxyJump through frontend. See below and `provisioning/PE2_PROVISIONING_QUICK_START.md`. |
+
+---
+
+## Additional Features (beyond core spec)
+
+| Feature | Description |
+|---|---|
+| V3 Editorial UI | All screens share `Cosmo·Brief` editorial chrome (masthead, brand bar, tab nav, footer) via `EditorialShell.tsx`. Topic facets in Browse via `GET /articles/topics`. |
+| Space Wordle | Daily Cipher at `/wordle` — 5-letter space words from PostgreSQL, daily rotation, per-user localStorage state, stats panel. |
+| Astronomical Events | Widget on Home/Browse — tonight's planets (AstronomyAPI) + upcoming meteor showers/eclipses (curated). Google Calendar links per event. |
+| User Account | `PATCH /users/me` — update username/email/password. `DELETE /users/me/data` — wipe reading history. 4-theme accent system. |
+| Article Search | `GET /articles?q=` — full-text ILIKE search on title and summary. |
 
 ---
 
@@ -198,7 +210,7 @@ curl http://${FRONTEND_IP}/api/health
 
 ## Ansible `command`/`shell` Module Justifications
 
-Three tasks use `ansible.builtin.command` because no suitable Ansible module exists:
+The following tasks use `ansible.builtin.command` or `ansible.builtin.shell` because no suitable Ansible module exists:
 
 | Task | File | Justification |
 |---|---|---|
@@ -207,6 +219,7 @@ Three tasks use `ansible.builtin.command` because no suitable Ansible module exi
 | Database migrations (`alembic upgrade head`) | `ansible/roles/backend/tasks/main.yml` | No Ansible module exists for running Alembic schema migrations. `changed_when` is set to detect actual migration output so the task reports no change when no new migrations exist. |
 | `npm ci` (install dependencies) | `ansible/roles/frontend/tasks/main.yml` | No Ansible module exists for `npm ci`. Runs on the Ansible control node via `delegate_to: localhost`. `changed_when: false` — always runs to ensure a clean install, never reports a spurious change. |
 | `npm run build` (Vite production build) | `ansible/roles/frontend/tasks/main.yml` | No Ansible module exists for running npm scripts. Runs on the Ansible control node via `delegate_to: localhost`. `changed_when: false` — the resulting `dist/` files are content-hashed; the subsequent `copy` task detects actual file changes and reports them. |
+| Exclude openssl from PGDG repos (shell loop over `/etc/yum.repos.d/pgdg-*.repo`) | `ansible/roles/storage/tasks/main.yml` | No Ansible module can conditionally append a `dnf.conf` key to a set of repo files matched by glob. A shell `for` loop with `grep`/`sed` is the only option. `changed_when: false` — re-running is safe: the `grep` guard ensures the line is added at most once. |
 
 **SELinux note:** The frontend role sets `httpd_can_network_connect = yes` via `ansible.posix.seboolean`. Without this, nginx (which runs in the `httpd_t` SELinux domain on AlmaLinux 9) cannot proxy to the backend and returns `502 Bad Gateway` on all API calls. This is a required idempotent step — running a second time is a no-op since the boolean is already set.
 

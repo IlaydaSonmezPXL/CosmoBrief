@@ -27,6 +27,7 @@
       ('BRAHE'),('EULER'),('FERMI'),('CANIS')
       ON CONFLICT (word) DO NOTHING
   become_user: postgres
+  changed_when: false
   register: wordle_seed_result
   failed_when:
     - wordle_seed_result.failed

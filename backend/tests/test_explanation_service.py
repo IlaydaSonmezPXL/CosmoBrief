@@ -111,50 +111,6 @@ async def test_needs_regeneration_generates_incremented_version() -> None:
 
 
 @pytest.mark.asyncio
-async def test_saved_state_not_overwritten_on_generation() -> None:
-    saved_state = ArticleState(
-        user_id=uuid.uuid4(),
-        article_id=123,
-        state="saved",
-        updated_at=datetime.now(timezone.utc),
-    )
-    session = _make_session([
-        _make_scalar_result(None),        # no existing explanation
-        _make_scalar_result(saved_state), # article state is saved
-        _make_scalar_result(None),        # no topic tag
-    ])
-
-    with patch("app.services.explanation_service.generate_explanation", new=AsyncMock(return_value=FAKE_GENERATION)):
-        await get_or_generate_explanation(
-            session, uuid.uuid4(), 123, "story", "Title", "Summary"
-        )
-
-    assert saved_state.state == "saved"
-
-
-@pytest.mark.asyncio
-async def test_dismissed_state_not_overwritten_on_generation() -> None:
-    dismissed_state = ArticleState(
-        user_id=uuid.uuid4(),
-        article_id=123,
-        state="dismissed",
-        updated_at=datetime.now(timezone.utc),
-    )
-    session = _make_session([
-        _make_scalar_result(None),
-        _make_scalar_result(dismissed_state),
-        _make_scalar_result(None),
-    ])
-
-    with patch("app.services.explanation_service.generate_explanation", new=AsyncMock(return_value=FAKE_GENERATION)):
-        await get_or_generate_explanation(
-            session, uuid.uuid4(), 123, "scientist", "Title", "Summary"
-        )
-
-    assert dismissed_state.state == "dismissed"
-
-
-@pytest.mark.asyncio
 async def test_read_state_transitions_to_explained_on_generation() -> None:
     read_state = ArticleState(
         user_id=uuid.uuid4(),
@@ -174,6 +130,28 @@ async def test_read_state_transitions_to_explained_on_generation() -> None:
         )
 
     assert read_state.state == "explained"
+
+
+@pytest.mark.asyncio
+async def test_already_explained_state_unchanged() -> None:
+    explained_state = ArticleState(
+        user_id=uuid.uuid4(),
+        article_id=123,
+        state="explained",
+        updated_at=datetime.now(timezone.utc),
+    )
+    session = _make_session([
+        _make_scalar_result(None),
+        _make_scalar_result(explained_state),
+        _make_scalar_result(None),
+    ])
+
+    with patch("app.services.explanation_service.generate_explanation", new=AsyncMock(return_value=FAKE_GENERATION)):
+        await get_or_generate_explanation(
+            session, uuid.uuid4(), 123, "eli12", "Title", "Summary"
+        )
+
+    assert explained_state.state == "explained"
 
 
 @pytest.mark.asyncio

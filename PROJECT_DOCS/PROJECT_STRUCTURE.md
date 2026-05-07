@@ -17,11 +17,11 @@ AutomationProject/
 │   │   ├── dependencies.py           # get_current_user, require_admin FastAPI dependencies
 │   │   ├── routers/
 │   │   │   ├── auth.py               # POST /auth/register, POST /auth/login
-│   │   │   ├── articles.py           # GET /articles (supports ?q= search), GET /articles/:id
+│   │   │   ├── articles.py           # GET /articles (supports ?q=, ?topic=, ?state=, ?freshness=), GET /articles/topics, GET /articles/:id
 │   │   │   ├── explanations.py       # POST /articles/:id/explanations, GET history
 │   │   │   ├── ratings.py            # POST /articles/:id/explanations/:mode/:ver/rating
 │   │   │   ├── users.py              # GET /users/me, PATCH /users/me, DELETE /users/me/data, GET /users/:id/reading-map
-│   │   │   ├── admin.py              # GET /admin/stats (admin role only)
+│   │   │   ├── admin.py              # GET /admin/stats, GET /admin/users (admin role only)
 │   │   │   ├── wordle.py             # GET /wordle/words (authenticated, returns word list from DB)
 │   │   │   ├── astronomical.py       # GET /astronomical/events?lat&lon — curated events + AstronomyAPI planet proxy
 │   │   │   └── health.py             # GET /health (includes live DB query)
@@ -34,10 +34,10 @@ AutomationProject/
 │   │   │   └── wordle_word.py        # wordle_words table
 │   │   ├── schemas/                  # Pydantic v2 request/response models
 │   │   │   ├── auth.py
-│   │   │   ├── article.py
+│   │   │   ├── article.py            # ArticleSummary, ArticleListResponse, TopicCount, ArticleTopicsResponse, ReadingMap schemas
 │   │   │   ├── explanation.py
 │   │   │   ├── rating.py
-│   │   │   ├── admin.py
+│   │   │   ├── admin.py              # AdminStatsResponse, AdminUserSummary, AdminUsersResponse
 │   │   │   ├── users.py              # UserMeResponse, UpdateMeRequest
 │   │   │   ├── wordle.py             # WordleWordsResponse
 │   │   │   └── astronomical.py       # AstronomicalEvent, AstronomicalEventsResponse
@@ -63,30 +63,42 @@ AutomationProject/
 │
 ├── frontend/                         # React 18 + Vite + TypeScript application
 │   ├── src/
-│   │   ├── main.tsx                  # React entry point, ReactDOM.createRoot
-│   │   ├── index.css                 # Global dark space theme — CSS variables, reset, all utility classes
-│   │   ├── App.tsx                   # Route definitions (React Router v6), PrivateRoute, AdminRoute
+│   │   ├── main.tsx                  # React entry point, ReactDOM.createRoot; sets data-theme from localStorage
+│   │   ├── index.css                 # Global dark space theme; V2 editorial CSS (scoped to .editorial); dark theme variants
+│   │   ├── editorial-v3.css          # V3 editorial theme: all --ink/--paper/--accent tokens + all screen styles
+│   │   │                             # (masthead, brand bar, tab nav, footer, login, browse, map, cipher, admin)
+│   │   ├── App.tsx                   # Route definitions: / → Home, /browse → Feed, all routes wrapped in EditorialShell
 │   │   ├── api/
 │   │   │   ├── client.ts             # Axios instance: base URL from VITE_API_URL, Bearer injection, 401 interceptor
-│   │   │   ├── articles.ts           # Typed wrappers for article endpoints (includes search param q)
+│   │   │   ├── articles.ts           # listArticles (topic/state/freshness/q/limit/offset), getArticle, getArticleTopics
 │   │   │   ├── explanations.ts       # Typed wrappers for explanation + rating endpoints
 │   │   │   ├── auth.ts               # Typed wrappers for register + login
 │   │   │   ├── wordle.ts             # getWordleWords() — fetches word list from backend
 │   │   │   ├── users.ts              # getMe, updateMe, wipeUserData — user settings API wrappers
 │   │   │   └── astronomical.ts       # getAstronomicalEvents(lat?, lon?) — fetches events from backend
 │   │   ├── components/
-│   │   │   ├── Nav.tsx               # Navbar: home, wordle, reading map, admin (role-conditional), logout
-│   │   │   ├── EarthIcon.tsx         # SVG Earth icon used in Nav, Login, Register
+│   │   │   ├── EditorialShell.tsx    # Shared V3 chrome: Masthead + BrandBar + sticky TabNav + Footer
+│   │   │   │                         # Auth-conditional: chips/tabs hidden for unauthenticated users
+│   │   │   │                         # Live stats (article count, fresh count) + location pill in masthead
+│   │   │   ├── EdNav.tsx             # Legacy V2 paper nav (used on older page variants; kept for reference)
+│   │   │   ├── Nav.tsx               # Legacy dark nav (kept for non-editorial contexts)
+│   │   │   ├── UserMenu.tsx          # Dropdown: Menu / Settings (theme swatches + data wipe) / Account (update profile)
+│   │   │   ├── EarthIcon.tsx         # SVG Earth icon
 │   │   │   ├── ScrollToTop.tsx       # Scrolls window to top on every route change
 │   │   │   └── AstronomicalEvents.tsx # Astronomical events widget: location bar, city geocoding, horizontal card strip
 │   │   ├── pages/
-│   │   │   ├── Login.tsx
-│   │   │   ├── Register.tsx
-│   │   │   ├── Feed.tsx              # Article feed with search, state/freshness filters, pagination
+│   │   │   ├── Login.tsx             # V3 split-pane: editorial hero left + form right; § Subscriber Entrance
+│   │   │   ├── Register.tsx          # V3 same template; § New Subscription
+│   │   │   ├── Home.tsx              # V2 editorial home (/) — masthead, brand bar, section nav, hero, sky, long reads,
+│   │   │   │                         # wire, orbit donut, wordle promo, footer — all inside EditorialShell
+│   │   │   ├── Feed.tsx              # Browse (/browse) — V3 dense newspaper rows; search, topic/state/freshness
+│   │   │   │                         # facets, pagination; AstronomicalEvents widget above list
 │   │   │   ├── ArticleDetail.tsx     # Detail view: explanation modes, ratings, version history
-│   │   │   ├── ReadingMap.tsx        # Interactive SVG constellation — topic stars, article panel on click
-│   │   │   ├── Wordle.tsx            # Space Wordle game — word fetched from backend, daily rotation, localStorage state per user+date; stats modal (Played/Win%/Streak/Best + distribution chart + share); stats in localStorage key wordle_stats_${userId}
-│   │   │   └── AdminDashboard.tsx    # Admin-only stats view
+│   │   │   ├── ReadingMap.tsx        # V3 SVG constellation (viewBox 600×480, grid + circles + crosshair);
+│   │   │   │                         # topic stars sized by read count; click star → panel with 3 stats + threads list
+│   │   │   ├── Wordle.tsx            # V3 Daily Cipher: board + keyboard + side panel (cipher clue card +
+│   │   │   │                         # stats + distribution + archive + share); localStorage per user+date
+│   │   │   └── AdminDashboard.tsx    # V3 Newsroom Desk: 4-stat head + token meter + subscribers table + signal queue
 │   │   └── context/
 │   │       └── AuthContext.tsx       # JWT storage in localStorage, user state, login/logout
 │   ├── .env.production               # GENERATED by Ansible. Contains only VITE_API_URL.
@@ -129,10 +141,13 @@ AutomationProject/
 │   │   │
 │   │   ├── backend/
 │   │   │   ├── tasks/
-│   │   │   │   └── main.yml          # Create system user, install python3.11 + python3.11-devel,
+│   │   │   │   └── main.yml          # Create system user, install python3.11 + python3.11-devel + rsync,
 │   │   │   │                         # keep openssh in sync with current openssl-libs,
-│   │   │   │                         # create venv, pip install -r requirements.txt,
-│   │   │   │                         # deploy app code, template .env, run alembic upgrade head,
+│   │   │   │                         # create venv, upgrade pip to latest (fixes bundled pip "from
+│   │   │   │                         # versions: none" on AlmaLinux 9), pip install -r requirements.txt,
+│   │   │   │                         # synchronize app code via ansible.posix.synchronize
+│   │   │   │                         # (excludes venv/__pycache__/pyc — venv built remote-side),
+│   │   │   │                         # template .env, run alembic upgrade head,
 │   │   │   │                         # deploy systemd service, start/enable service
 │   │   │   ├── templates/
 │   │   │   │   ├── cosmobrief.env.j2 # Backend environment file (DB URL, JWT secret, OpenAI key)

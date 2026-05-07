@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import Nav from "../components/Nav";
+import EditorialShell from "../components/EditorialShell";
 import { getArticle, ArticleDetail as ArticleDetailType } from "../api/articles";
 import {
   requestExplanation,
@@ -12,11 +12,25 @@ import {
 } from "../api/explanations";
 
 const MODES: Array<{ key: ExplanationMode; label: string }> = [
-  { key: "eli12",      label: "Like I'm 12"   },
-  { key: "caveman",    label: "Caveman"        },
-  { key: "alien",      label: "Alien"          },
-  { key: "story",      label: "Story"          },
+  { key: "eli12",   label: "Like I'm 12" },
+  { key: "caveman", label: "Caveman"     },
+  { key: "alien",   label: "Alien"       },
+  { key: "story",   label: "Story"       },
 ];
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: "long", day: "numeric", year: "numeric",
+  });
+}
+
+function formatTimeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const hours = Math.floor(diff / 3_600_000);
+  if (hours < 1) return "just now";
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
 
 export default function ArticleDetail() {
   const { id } = useParams<{ id: string }>();
@@ -99,51 +113,85 @@ export default function ArticleDetail() {
     }
   }
 
-  if (loadingArticle) return (
-    <div className="page"><Nav /><div className="container"><p className="loading-text">Loading…</p></div></div>
-  );
-  if (error || !article) return (
-    <div className="page"><Nav /><div className="container"><p className="error-text">{error || "Article not found."}</p></div></div>
-  );
+  if (loadingArticle) {
+    return (
+      <EditorialShell>
+        <div className="ed-light">
+          <div className="ed-reading">
+            <p className="ed-loading-text">Loading…</p>
+          </div>
+        </div>
+      </EditorialShell>
+    );
+  }
+
+  if (error || !article) {
+    return (
+      <EditorialShell>
+        <div className="ed-light">
+          <div className="ed-reading">
+            <p className="ed-error-text">{error || "Article not found."}</p>
+          </div>
+        </div>
+      </EditorialShell>
+    );
+  }
 
   return (
-    <div className="page">
-      <Nav />
-      <div className="container" style={{ maxWidth: 780 }}>
-        <button className="btn btn-back" onClick={() => navigate(-1)} style={{ marginBottom: "1.5rem" }}>
-          Back
+    <EditorialShell>
+      <div className="ed-light">
+        <div className="ed-reading">
+
+        {/* Back navigation */}
+        <button className="ed-article-back" onClick={() => navigate(-1)}>
+          ← Back to browse
         </button>
 
-        <div className="detail-header">
-          <h1 className="detail-title">{article.title}</h1>
-          <p className="detail-meta">
-            {article.news_site}
-            {article.published_at && ` · ${new Date(article.published_at).toLocaleDateString()}`}
-            {` · `}
-            <span style={{ textTransform: "capitalize" }}>{article.freshness}</span>
-            {article.state !== "new" && (
-              <span style={{ marginLeft: "0.5rem" }}>
-                <span className="badge badge-read">read</span>
-              </span>
-            )}
-          </p>
+        {/* Article header */}
+        <div className="ed-article-kicker-line">
+          <span className="hero-sep" />
+          {article.news_site ?? "Space News"}
+          {article.freshness && (
+            <span className={`ed-fresh-${article.freshness}`}>· {article.freshness}</span>
+          )}
+        </div>
+
+        <h1 className="ed-article-headline">{article.title}</h1>
+
+        <div className="ed-article-byline">
+          {article.news_site && <span>{article.news_site}</span>}
+          {article.published_at && (
+            <span>{formatDate(article.published_at)} · {formatTimeAgo(article.published_at)}</span>
+          )}
+          {article.state !== "new" && <span className="ed-state-read">· read</span>}
           {article.url && (
-            <a href={article.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.85rem" }}>
+            <a href={article.url} target="_blank" rel="noopener noreferrer">
               Read original →
             </a>
           )}
         </div>
 
+        {/* Hero image */}
         {article.image_url && (
-          <img src={article.image_url} alt="" className="detail-img" />
+          <img
+            src={article.image_url}
+            alt=""
+            className="ed-article-hero-img"
+            loading="lazy"
+          />
         )}
 
-        <p className="detail-summary">{article.summary}</p>
+        {/* Summary / body */}
+        {article.summary && (
+          <p className="ed-article-summary">{article.summary}</p>
+        )}
 
-        <hr className="divider" />
+        <hr className="ed-divider" />
 
-        <p className="section-label">AI Explanations</p>
-        <div className="mode-bar">
+        {/* AI Briefing section */}
+        <div className="ed-briefing-label">AI Briefing</div>
+
+        <div className="ed-mode-bar">
           {MODES.map(({ key, label }) => {
             const status = article.explanations[key];
             const badge = status?.available
@@ -152,8 +200,8 @@ export default function ArticleDetail() {
             return (
               <button
                 key={key}
-                className={`btn${activeMode === key ? " btn-active" : ""}`}
-                onClick={() => handleExplain(key)}
+                className={`ed-mode-btn${activeMode === key ? " active" : ""}`}
+                onClick={() => { void handleExplain(key); }}
               >
                 {label}{badge}
               </button>
@@ -161,36 +209,47 @@ export default function ArticleDetail() {
           })}
         </div>
 
-        {loadingExplanation && <p className="loading-text">Generating explanation…</p>}
-        {explainError && <p className="error-text">{explainError}</p>}
+        {loadingExplanation && (
+          <p className="ed-loading-text">Generating explanation…</p>
+        )}
+        {explainError && (
+          <p className="ed-error-text">{explainError}</p>
+        )}
 
         {explanation && !loadingExplanation && (
-          <div className="explanation-panel">
-            <div className="explanation-meta">
+          <div className="ed-explanation">
+            <div className="ed-explanation-meta">
               v{explanation.version} · {new Date(explanation.generated_at).toLocaleString()} · {explanation.source}
             </div>
-            <p className="explanation-text">{explanation.text}</p>
-            <div className="explanation-actions">
+            <p className="ed-explanation-text">{explanation.text}</p>
+            <div className="ed-explanation-actions">
               {explanation.rating ? (
                 <>
-                  <span className="rating-display">
+                  <span className="ed-rating-display">
                     Rated {explanation.rating === "up" ? "👍" : "👎"}
                   </span>
                   {explanation.rating === "down" && (
-                    <button className="btn btn-ghost" onClick={() => handleExplain(activeMode!)}>
+                    <button
+                      className="ed-action-ghost"
+                      onClick={() => { void handleExplain(activeMode!); }}
+                    >
                       Regenerate
                     </button>
                   )}
                 </>
               ) : (
                 <>
-                  <button className="btn" onClick={() => handleRate("up")}>👍</button>
-                  <button className="btn" onClick={() => handleRate("down")}>👎</button>
+                  <button className="ed-action-btn" onClick={() => { void handleRate("up"); }}>
+                    👍
+                  </button>
+                  <button className="ed-action-btn" onClick={() => { void handleRate("down"); }}>
+                    👎
+                  </button>
                 </>
               )}
               <button
-                className="btn btn-ghost"
-                onClick={handleShowHistory}
+                className="ed-action-ghost"
+                onClick={() => { void handleShowHistory(); }}
                 style={{ marginLeft: "auto" }}
               >
                 {showHistory ? "Hide history" : "History"}
@@ -200,21 +259,22 @@ export default function ArticleDetail() {
         )}
 
         {showHistory && history && (
-          <div className="history-panel">
-            <p className="section-label" style={{ marginBottom: "0.5rem" }}>Version history</p>
+          <div className="ed-history">
+            <div className="ed-history-title">Version history</div>
             {history.map((v) => (
-              <div key={v.version} className="history-item">
-                <div className="history-item-meta">
+              <div key={v.version} className="ed-history-item">
+                <div className="ed-history-item-meta">
                   v{v.version} · {new Date(v.generated_at).toLocaleString()}
                   {v.rating && ` · ${v.rating === "up" ? "👍" : "👎"}`}
                   {v.needs_regeneration && " · needs regeneration"}
                 </div>
-                <p className="history-item-text">{v.text}</p>
+                <p className="ed-history-item-text">{v.text}</p>
               </div>
             ))}
           </div>
         )}
+        </div>
       </div>
-    </div>
+    </EditorialShell>
   );
 }

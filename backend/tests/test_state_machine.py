@@ -8,12 +8,6 @@ from app.services.state_machine import validate_transition
     [
         (None, "read"),
         ("read", "explained"),
-        ("read", "saved"),
-        ("read", "dismissed"),
-        ("explained", "saved"),
-        ("explained", "dismissed"),
-        ("saved", "dismissed"),
-        ("dismissed", "saved"),
     ],
 )
 def test_valid_transitions(from_state: object, to_state: str) -> None:
@@ -23,17 +17,13 @@ def test_valid_transitions(from_state: object, to_state: str) -> None:
 @pytest.mark.parametrize(
     "from_state,to_state",
     [
-        (None, "saved"),
-        (None, "dismissed"),
         (None, "explained"),
+        (None, "new"),
         ("read", "new"),
+        ("read", "read"),
         ("explained", "read"),
         ("explained", "new"),
-        ("saved", "read"),
-        ("saved", "new"),
-        ("dismissed", "read"),
-        ("dismissed", "new"),
-        ("dismissed", "explained"),
+        ("explained", "explained"),
     ],
 )
 def test_invalid_transitions(from_state: object, to_state: str) -> None:

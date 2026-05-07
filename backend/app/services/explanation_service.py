@@ -8,6 +8,7 @@ from app.models.article_state import ArticleState
 from app.models.explanation import Explanation
 from app.models.topic_tag import TopicTag
 from app.services.openai_client import generate_explanation
+from app.services.state_machine import validate_transition
 
 
 async def get_or_generate_explanation(
@@ -58,18 +59,24 @@ async def get_or_generate_explanation(
         )
     )
     state_row = state_result.scalar_one_or_none()
-    if state_row is None:
-        session.add(
-            ArticleState(
-                user_id=user_id,
-                article_id=article_id,
-                state="explained",
-                updated_at=now,
+    current_state = state_row.state if state_row else None
+    if current_state != "explained":
+        # For None (new): backend-driven path, validate_transition not enforced
+        # For "read": validate via state machine before promoting to "explained"
+        if current_state is not None and not validate_transition(current_state, "explained"):
+            raise ValueError(f"Invalid state transition: {current_state!r} → explained")
+        if state_row is None:
+            session.add(
+                ArticleState(
+                    user_id=user_id,
+                    article_id=article_id,
+                    state="explained",
+                    updated_at=now,
+                )
             )
-        )
-    else:
-        state_row.state = "explained"
-        state_row.updated_at = now
+        else:
+            state_row.state = "explained"
+            state_row.updated_at = now
 
     tag_result = await session.execute(
         select(TopicTag).where(

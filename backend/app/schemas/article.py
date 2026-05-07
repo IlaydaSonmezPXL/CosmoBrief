@@ -29,6 +29,15 @@ class ArticleListResponse(BaseModel):
     offset: int
 
 
+class TopicCount(BaseModel):
+    tag: str
+    count: int
+
+
+class ArticleTopicsResponse(BaseModel):
+    topics: List[TopicCount]
+
+
 class ExplanationStatus(BaseModel):
     available: bool
     latest_version: Optional[int]

@@ -4,6 +4,77 @@ Planned and discussed UI additions. Each entry notes what it replaces/adds, scop
 
 ---
 
+## V2 Editorial Redesign
+
+**Status:** Done — implemented 2026-05-05
+
+### What it is
+Complete visual overhaul of the home page (`/`) to an editorial/newspaper magazine layout. Design reference in `CosmicBrief-V2/design_handoff_cosmo_brief_editorial/`. Same data and features, new presentation.
+
+### Route changes
+- `/` → `Home.tsx` (V2 editorial scroll page)
+- `/browse` → `Feed.tsx` (existing paginated article feed, now accessible from brand bar + nav)
+- All other routes (`/articles/:id`, `/reading-map`, `/wordle`, `/admin`) unchanged, keep existing dark Nav
+
+### Sections (Home page — single scroll)
+1. **Masthead** — paper bg, mono font, edition number + live date
+2. **Brand bar** — `Cosmo&Brief` Fraunces 900 wordmark, article count stats, nav chips (Browse / Map / Wordle), UserMenu avatar
+3. **Sticky section nav** — ink bg, IntersectionObserver active state, "Updated Xm ago" live indicator
+4. **Hero** — full-bleed lead article image, Fraunces headline, deck, "Read the brief →", side card showing next sky event
+5. **Tonight's Sky** — 4 poster-style cards from AstronomicalEvents API, first card featured (coral), location change inline
+6. **Long Reads** — 2-up feature grid, articles 2–3 preferring those with images
+7. **Pull Quote** — rotating daily space quote (7 quotes, keyed by day-of-year)
+8. **The Wire** — compact 2-col grid of remaining articles (up to 17), Wire headline turns coral on hover
+9. **Reading Orbit** — SVG donut chart (arcs = topic read counts) + topic table with rank-based trend indicators
+10. **Daily Cipher** — Wordle promo: shows stats from localStorage + mini board (real today's game if played, else decorative pattern), CTA → `/wordle`
+11. **Footer** — paper bg, 4-col magazine colophon, stardate, sign-out
+
+### Design tokens
+New `--ed-*` variables defined on `.editorial` (home) and `.ed-light` (secondary pages) wrappers, isolated from existing dark theme system. Fraunces (serif) + JetBrains Mono added to Google Fonts; Orbitron kept for Wordle/ReadingMap/Admin. Existing 4 dark themes unaffected (apply to Wordle, ReadingMap, Admin only now).
+
+---
+
+## V3 Editorial Extension — All Screens
+
+**Status:** Done — implemented 2026-05-05
+
+Design reference: `CosmoBrief-V3/design_handoff_cosmo_brief_screens/`
+
+### What it is
+Extends the V2 editorial language to all remaining screens so the entire app reads as one publication, not a V2 home bolted onto generic admin/login pages.
+
+### Shared chrome
+`EditorialShell.tsx` — single component wrapping every route: Masthead (edition no., live date, location pill) + BrandBar (live article stats, `Cosmo·Brief` wordmark, auth-conditional action chips) + sticky route-based TabNav (ink bar, coral active underline, live update indicator) + Footer (4-col magazine colophon). Auth-conditional: chips and TabNav hidden for unauthenticated users.
+
+### Screens rebuilt to V3 spec
+- **Login** — split-pane: editorial hero left + ink form pane right; `§ · Subscriber Entrance`; username + password only
+- **Register** — same template; `§ · New Subscription`
+- **Browse** (`/browse`) — V3 dense newspaper rows (index + thumb + body + aside grid); topic facet row (derives from topic_tags via `GET /articles/topics`); state + freshness facets; search; pagination
+- **Reading Map** (`/reading-map`) — SVG `viewBox="0 0 600 480"` with grid pattern (60px), 3 concentric dashed circles, crosshair; stars sized by `8 - mag*1.5 + sqrt(count)`; outer ring + inner solid + SVG `<animate>` pulsing; count label `·NN·` above, italic name below; active star: coral radial glow; topic-colored panel with 3 stats + threads list
+- **Daily Cipher** (`/wordle`) — V3 board + keyboard layout; editorial clue card in side panel (context-aware flavor text, "— The Editor"); stats + distribution + past puzzles + share unchanged
+- **Admin / Newsroom** (`/admin`) — V3 Newsroom Desk: 4-stat header grid + token meter (prompt vs completion bar) + subscribers table (from `GET /admin/users`) + signal queue (article cache, freshness status)
+
+### New backend endpoints (bonus, not in core spec)
+- `GET /articles/topics` — top 20 tags with distinct article counts; authenticated
+- `GET /articles?topic=X` — filter articles by topic tag via subquery into topic_tags
+- `GET /admin/users` — admin-gated; returns all users with explanation counts
+
+### CSS
+All V3 styles in `frontend/src/editorial-v3.css` (separate from `index.css`). Tokens: `--ink`, `--paper`, `--accent` (coral), `--gold`, `--cyan`, `--mute` scoped to `.cb-root`. No changes to existing dark theme or V2 editorial CSS.
+
+### Brand symbol
+`Cosmo·Brief` — middle dot (U+00B7) replaces the `&` ampersand. More fitting as an editorial interpunct for a compound brand name. CSS class `.sep` (was `.amp`).
+
+---
+
+## V2 Secondary Pages Redesign
+
+**Status:** Superseded by V3 — 2026-05-05
+
+V2 secondary page styles (EdNav, `.ed-light`, `.ed-article-row`, etc.) remain in `index.css` for reference. The V3 `EditorialShell` now handles all pages. `EdNav.tsx` is kept but no longer used by any active route.
+
+---
+
 ## Astronomical Events Widget
 
 **Status:** Done — implemented 2026-05-05

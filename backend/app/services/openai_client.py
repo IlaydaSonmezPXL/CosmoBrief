@@ -42,7 +42,7 @@ async def generate_explanation(title: str, summary: str | None, mode: str) -> tu
     user_content = f"Title: {title}\nSummary: {summary or 'No summary provided.'}"
 
     response = await client.beta.chat.completions.parse(
-        model="gpt-4o-mini-2024-07-18",
+        model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content},

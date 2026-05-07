@@ -17,6 +17,7 @@ export default function Nav() {
         <EarthIcon size={20} />
         Cosmo Brief
       </Link>
+      <Link to="/browse" className={navClass("/browse")}>Browse</Link>
       <Link to="/reading-map" className={navClass("/reading-map")}>Reading Map</Link>
       <Link to="/wordle" className={navClass("/wordle")}>Wordle</Link>
       {user?.role === "admin" && <Link to="/admin" className={navClass("/admin")}>Admin</Link>}

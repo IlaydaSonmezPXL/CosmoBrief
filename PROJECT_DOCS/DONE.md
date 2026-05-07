@@ -13,7 +13,7 @@ Completed tasks, moved from TODO.md after verification.
 - [x] `ansible/group_vars/all.yml` — verified: app_name, backend_port
 - [x] `ansible/group_vars/frontend.yml` — verified: frontend_http_port: 8080
 - [x] `ansible/group_vars/backend.yml` — verified: python_version, app_dir, gunicorn_workers
-- [x] `ansible/group_vars/storage.yml` — verified: postgresql_version, db_name, db_user, pg_port
+- [x] `ansible/group_vars/storage.yml` — verified: postgresql_version only (db_name, db_user, pg_port live in all.yml — shared with backend role)
 - [x] `ansible/vault.yml` — verified: all 7 secret keys present as placeholders (UNENCRYPTED — must encrypt before commit)
 - [x] `ansible/playbook.yml` — verified: 4 plays (storage, backend, frontend, seed); seed play uses include_role tasks_from so admin seeding lives in storage role but runs after alembic
 - [x] `ansible/roles/storage/defaults/main.yml` — verified: pg_data_dir, pg_service_name, pg_bin_dir, pg_setup_bin
@@ -21,14 +21,14 @@ Completed tasks, moved from TODO.md after verification.
 - [x] `ansible/roles/storage/templates/postgresql.conf.j2` — verified: listen_addresses=*, port, password_encryption=scram-sha-256
 - [x] `ansible/roles/storage/templates/pg_hba.conf.j2` — verified: peer local, scram loopback, backend IP via hostvars (no hardcoded IPs)
 - [x] `ansible/roles/storage/tasks/main.yml` — verified: AppStream disable → PGDG repo → packages (incl. python3-psycopg2) → initdb (guarded) → service → templates → flush_handlers → db + user + schema grants
-- [x] `ansible/roles/storage/tasks/seed_admin.yml` — verified: ON CONFLICT DO NOTHING, graceful failed_when for missing users table
+- [x] `ansible/roles/storage/tasks/seed_admin.yml` — verified: ON CONFLICT DO NOTHING, changed_when: false, graceful failed_when for missing users table
 - [x] `storage/init/schema_reference.sql` — verified: all 5 tables match REQUIREMENTS.md section 8
 
 ---
 
 ## BACKEND ROLE — Ansible (Phase 2)
 
-- [x] `ansible/roles/backend/tasks/main.yml` — verified: installs Python, creates venv, deploys app, templates env/gunicorn/systemd, runs Alembic, starts service
+- [x] `ansible/roles/backend/tasks/main.yml` — verified: installs Python + rsync, creates venv, synchronizes app code (excludes venv/venv2/__pycache__/pyc via ansible.posix.synchronize — avoids shipping 225MB local venv), templates env/gunicorn/systemd, runs Alembic, starts service
 - [x] `ansible/roles/backend/templates/cosmobrief.env.j2` — verified: DB URL + JWT + OpenAI + SNAPI TTL vars
 - [x] `ansible/roles/backend/templates/cosmobrief.service.j2` — verified: systemd unit uses venv gunicorn and .env file
 - [x] `ansible/roles/backend/templates/gunicorn.conf.py.j2` — verified: bind, workers, uvicorn worker class, logs
@@ -361,3 +361,64 @@ Completed tasks, moved from TODO.md after verification.
 
 - [x] `frontend/src/pages/Wordle.tsx` — stat box labels changed to: "Played", "Win %", "Current Streak", "Max Streak" (matches NYT Wordle naming)
 - [x] `frontend/src/index.css` — `.wordle-stats-label` removed `text-transform: uppercase`; added `line-height: 1.4` + `word-break: break-word` so "Current Streak" / "Max Streak" wrap cleanly in narrow columns
+
+---
+
+## V3 Editorial Extension — All Screens (2026-05-05)
+
+Design reference: `CosmoBrief-V3/design_handoff_cosmo_brief_screens/`
+
+- [x] `frontend/src/components/EditorialShell.tsx` (new) — shared Masthead + BrandBar + route-based sticky TabNav + Footer chrome; wraps every page; auth-conditional chips (Browse/Map/Cipher/Admin only shown when authenticated); TabNav hidden for unauthenticated users; live stats from `listArticles` + `localStorage` location name in masthead weather pill
+- [x] `frontend/src/editorial-v3.css` (new) — V3 CSS file: all `--ink/--paper/--accent` tokens scoped to `.cb-root`; masthead, brand bar, tab nav, footer, login split-pane, browse dense rows, reading map, cipher board+keyboard+side panel, admin newsroom — all screens styled here
+- [x] `frontend/src/App.tsx` — all routes now wrapped in `<EditorialShell>`; `PrivateRoute` and `AdminRoute` unchanged
+- [x] `frontend/src/pages/Login.tsx` — V3 split-pane: hero left column (full-bleed editorial) + form right column (ink bg); `§ · Subscriber Entrance` section number; username+password only (no OAuth/magic-link per design decision Q2a)
+- [x] `frontend/src/pages/Register.tsx` — same V3 template as Login; `§ · New Subscription` section number
+- [x] `frontend/src/pages/Feed.tsx` — V3 dense newspaper rows (num + thumb + body + aside grid); topic facet row added above state/freshness facets; `topicFilter` state + `getArticleTopics()` on mount; `topic` param forwarded to `listArticles`
+- [x] `frontend/src/pages/ReadingMap.tsx` — full V3 rewrite: SVG `viewBox="0 0 600 480"` + grid pattern (60px) + 3 concentric dashed circles + crosshair; star radius `8 - mag*1.5 + sqrt(count)`; outer ring (topic color, low opacity) + inner solid disc + SVG `<animate>` pulsing; count label `·NN·` above star; name label italic below; active star: radial coral glow; connections coral when endpoint selected; no pan/drag; panel: section num + title in topic color via `--panel-dot-color` CSS var; 3 stats (reads/trend/threads); threads as `num | title | 1` grid rows; strip: swatch/name/bar/count; legend updated
+- [x] `frontend/src/pages/Wordle.tsx` — V3 cipher clue card added to side panel (`.cipher-clue`); context-aware copy (pre-game / won / lost); editorial shell fully wraps; Wordle scoreboard stats redesigned as V3 side panel sections
+- [x] `frontend/src/pages/AdminDashboard.tsx` — V3 Newsroom Desk layout: `.admin-head` 4-stat grid + token meter + subscribers table (`GET /admin/users`) + signal queue (article cache)
+- [x] `backend/app/routers/articles.py` — added `GET /articles/topics` endpoint (returns top 20 tags with distinct article counts, authenticated); added `topic: Optional[str]` query param to `GET /articles` (filters via subquery into `topic_tags`)
+- [x] `backend/app/schemas/article.py` — added `TopicCount`, `ArticleTopicsResponse` schemas
+- [x] `backend/app/routers/admin.py` — added `GET /admin/users` endpoint (admin-gated; returns all users with explanation counts, ordered by created_at desc)
+- [x] `backend/app/schemas/admin.py` — added `AdminUserSummary`, `AdminUsersResponse` schemas
+- [x] `frontend/src/api/articles.ts` — added `topic?: string` to `listArticles` params; added `getArticleTopics()` function and `TopicCount`/`ArticleTopicsResponse` types
+- [x] `frontend/src/editorial-v3.css` — `.cipher-clue`, `.cipher-clue-text`, `.cipher-clue-foot` added; `.map-panel-stats` changed to `repeat(3, 1fr)`; `.map-thread-item` updated to V3 `num | lbl | cnt` grid; `.map-panel-head .cb-section-num::before` uses `--panel-dot-color` CSS var; `.cb-chip` color changed from `inherit` to explicit `var(--ink)` to prevent global `a { color }` bleed
+- [x] `ansible/roles/backend/tasks/main.yml` — added "Upgrade pip in virtualenv" task (state: latest) before requirements install; `HOME: /tmp` env on both pip tasks — fixes "from versions: none" error caused by old bundled pip on AlmaLinux 9's python3.11 package
+- [x] `mypy app/` — zero errors; `npx tsc --noEmit` — zero errors; `ruff check app/` — zero errors
+
+---
+
+## Brand symbol change (2026-05-05)
+
+- [x] `&amp;` separator in `Cosmo&Brief` wordmark changed to `·` (middle dot, U+00B7) throughout all files — more fitting editorial interpunct for a compound brand name
+- [x] CSS class `.amp` renamed to `.sep` in `editorial-v3.css` and `index.css`; styling simplified (no italic, no negative margin) — `color: var(--accent)` only
+- [x] Updated in: `EditorialShell.tsx`, `Login.tsx`, `Register.tsx`, `EdNav.tsx`, `editorial-v3.css`, `index.css`
+
+---
+
+## Review Pass — Requirements compliance (2026-05-05)
+
+- [x] `ansible/group_vars/storage.yml` — removed `db_name`, `db_user`, `pg_port` (duplicated from `all.yml`); NFR-ANS-04 violation fixed; `storage.yml` now only holds `postgresql_version: 16`
+- [x] `ansible/roles/storage/tasks/seed_admin.yml` — changed `ON CONFLICT DO UPDATE SET password_hash = EXCLUDED.password_hash` → `ON CONFLICT (username) DO NOTHING` per FR-ST-07; added `changed_when: false` so second playbook run reports zero changes (idempotency, NFR-IDP-01)
+- [x] `ansible/roles/storage/tasks/seed_wordle.yml` — added `changed_when: false`; DO NOTHING already present but module always reported changed without this flag (NFR-IDP-01)
+- [x] `backend/app/routers/articles.py` — imported `validate_transition` from `services/state_machine`; `get_article` now calls it before creating the new→read record (FR-BE-05 / STM-01)
+- [x] `backend/app/services/explanation_service.py` — imported `validate_transition`; called for read→explained transition; None→explained (backend-driven, article never opened) bypasses validation per FR-BE-11 spec intent; already-explained state skips silently (idempotent)
+- [x] `PROJECT_DOCS/PROJECT_README.md` — added `ansible.builtin.shell` justification for the PGDG `excludepkgs=openssl*` loop to the command/shell table (was described in notes only)
+- [x] `mypy app/` — zero errors after all backend changes
+
+---
+
+## UI Bug Fixes (2026-05-05)
+
+- [x] `frontend/src/index.css` — `.ed-article-headline` missing `color: var(--ed-ink)`: global `h1 { color: var(--text) }` (line 170) used dark-theme `--text: #dde3f0` (pale blue-white); on the editorial light background (`--ed-paper: #f4ede0`) the title appeared washed-out; explicit `color: var(--ed-ink)` on the class overrides it
+- [x] `frontend/src/editorial-v3.css` — `.map-strip-row` padding changed from `1rem 0` → `1rem 1.2rem 1rem 0`; the article-count "1" label was flush against the viewport edge because the grid's last column had zero right clearance; right padding gives it breathing room
+- [x] `npx tsc --noEmit` — zero errors
+
+---
+
+## Test + Spec Fixes (2026-05-05)
+
+- [x] `backend/tests/test_state_machine.py` — removed parametrized cases for `saved`/`dismissed` (states removed from project earlier); kept `(None, "read")` and `("read", "explained")` valid; expanded invalid cases (`(None,"explained")`, `("read","read")`, `("explained","read")`, etc.). Was 8 failing tests; now passes.
+- [x] `backend/tests/test_explanation_service.py` — removed `test_saved_state_not_overwritten_on_generation` and `test_dismissed_state_not_overwritten_on_generation` (referenced removed states + non-existent mode `"scientist"`); added `test_already_explained_state_unchanged` to cover idempotent re-generation when state already `explained`
+- [x] `backend/app/services/openai_client.py` — model name pinned snapshot `gpt-4o-mini-2024-07-18` → alias `gpt-4o-mini` to match REQUIREMENTS.md §6.2 exactly
+- [x] `pytest -q` — 22/22 pass; `mypy app/` zero errors; `ruff check app/` zero errors; `npx tsc --noEmit` zero errors; `npm run lint` zero warnings

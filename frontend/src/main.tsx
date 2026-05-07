@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
+import "./editorial-v3.css";
 import App from "./App";
 
 // Apply persisted theme before first render to avoid flash

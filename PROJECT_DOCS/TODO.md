@@ -113,7 +113,7 @@ Implementation order: storage → backend → frontend → extras
 - [x] Create `frontend/src/components/Nav.tsx`
 - [x] Run `npx tsc --noEmit` — zero errors
 - [x] Run `npm run lint` — zero errors
-- [ ] Manual browser test: full golden path
+- [x] Manual browser test: full golden path (V3 editorial design verified visually; all routes functional)
 
 ---
 
@@ -132,15 +132,29 @@ Implementation order: storage → backend → frontend → extras
 ## ADDITIONAL FEATURES
 
 - [x] Astronomical Events widget on Feed — `GET /astronomical/events?lat&lon`, curated annual event list + AstronomyAPI planet positions, horizontal scrollable card strip with Google Calendar URL links, browser geolocation + city-name geocoding via Nominatim, localStorage persistence. **Requires:** `vault_astronomy_app_id` + `vault_astronomy_app_secret` in `ansible/vault.yml` (user must add manually with `ansible-vault edit`).
-- [ ] Admin token tracking via OpenAI Admin API — replace DB-summed token counts in `GET /admin/stats` with live data from OpenAI usage API (`GET https://api.openai.com/v1/organization/usage/completions`). **Requires:** separate Admin API key (not the inference key) — obtain from platform.openai.com → API keys → create Admin key. Store as `vault_openai_admin_key` in `ansible/vault.yml`. Add `openai_admin_api_key: Optional[str]` to `backend/app/config.py`. In `admin.py`, if key present call OpenAI usage endpoint for current month, fall back to DB sum if absent or API error. Token counts then survive VM destruction.
+- [x] V2 Editorial Redesign — `Home.tsx` at `/` with full editorial layout; Feed moved to `/browse`; Fraunces + JetBrains Mono fonts. See DESIGN/ROADMAP.md.
+- [x] V3 Editorial Extension — all 5 screens (Login, Browse, ReadingMap, Cipher, Admin) redesigned to V3 spec; shared `EditorialShell.tsx` chrome; `editorial-v3.css`; topic facets on Browse; ReadingMap SVG constellation V3; cipher clue card. See DONE.md 2026-05-05.
+- [ ] Admin token tracking via OpenAI Admin API — replace DB-summed token counts in `GET /admin/stats` with live data from OpenAI usage API. **Requires:** separate Admin API key stored as `vault_openai_admin_key` in vault. Low priority.
 
 ---
 
 ## VERIFICATION
 
 - [ ] Full deploy from clean state — single Ansible command, no manual steps
-- [ ] Idempotency — second run: zero changed, zero restarts
+- [ ] Idempotency — second run: zero changed, zero restarts (seed tasks now `changed_when: false`)
 - [ ] Tier-specific redeploy — `--limit frontend/backend/storage`
 - [ ] Health checks — all three tiers respond correctly
 - [ ] Persisted-state proof — data survives full redeploy
 - [ ] Demo readiness — all graded items demonstrable
+
+---
+
+## COMPLETED THIS SESSION (2026-05-05) — requirements review pass
+
+- [x] Duplicate group_vars fixed: `db_name`/`db_user`/`pg_port` removed from `storage.yml` (kept in `all.yml`)
+- [x] State machine wired: `validate_transition` now called in `articles.py` (new→read) and `explanation_service.py` (read→explained)
+- [x] `seed_admin.yml`: `DO UPDATE` → `DO NOTHING` + `changed_when: false`
+- [x] `seed_wordle.yml`: `changed_when: false` added
+- [x] README: `shell` module justification added for PGDG excludepkgs task
+- [x] UI: `.ed-article-headline` now `color: var(--ed-ink)` — title no longer pale blue on light bg
+- [x] UI: `.map-strip-row` right padding added — count label no longer flush at viewport edge

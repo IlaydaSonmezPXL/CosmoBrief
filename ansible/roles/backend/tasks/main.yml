@@ -12,6 +12,7 @@
       - "python{{ python_version }}-devel"
       - "python{{ python_version }}-pip"
       - python3-packaging
+      - rsync
     state: present
 
 # Stock generic/alma9 ships an old openssh built against an earlier OpenSSL
@@ -43,13 +44,19 @@
     mode: "0755"
 
 - name: Copy backend source code
-  copy:
+  ansible.posix.synchronize:
     src: "{{ playbook_dir }}/../backend/"
     dest: "{{ app_dir }}/"
-    owner: "{{ app_user }}"
-    group: "{{ app_group }}"
-    mode: "0644"
-    directory_mode: "0755"
+    rsync_path: "sudo rsync"
+    rsync_opts:
+      - "--exclude=venv"
+      - "--exclude=venv2"
+      - "--exclude=__pycache__"
+      - "--exclude=*.pyc"
+      - "--exclude=.pytest_cache"
+      - "--exclude=.mypy_cache"
+      - "--chmod=D755,F644"
+      - "--chown={{ app_user }}:{{ app_group }}"
   notify: Restart cosmobrief
 
 - name: Render backend environment file
@@ -70,12 +77,26 @@
     mode: "0644"
   notify: Restart cosmobrief
 
+- name: Upgrade pip in virtualenv
+  pip:
+    name: pip
+    state: latest
+    virtualenv: "{{ venv_dir }}"
+    virtualenv_command: "{{ python_bin }} -m venv"
+  become_user: "{{ app_user }}"
+  environment:
+    HOME: /tmp
+  vars:
+    ansible_remote_tmp: /tmp
+
 - name: Install backend dependencies in virtualenv
   pip:
     requirements: "{{ app_dir }}/requirements.txt"
     virtualenv: "{{ venv_dir }}"
     virtualenv_command: "{{ python_bin }} -m venv"
   become_user: "{{ app_user }}"
+  environment:
+    HOME: /tmp
   vars:
     ansible_remote_tmp: /tmp
   notify: Restart cosmobrief

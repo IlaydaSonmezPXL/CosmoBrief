@@ -33,14 +33,28 @@ export interface ArticleListResponse {
   offset: number;
 }
 
+export interface TopicCount {
+  tag: string;
+  count: number;
+}
+
+export interface ArticleTopicsResponse {
+  topics: TopicCount[];
+}
+
 export function listArticles(params?: {
   state?: string;
   freshness?: string;
+  topic?: string;
   q?: string;
   limit?: number;
   offset?: number;
 }) {
   return apiClient.get<ArticleListResponse>("/articles", { params });
+}
+
+export function getArticleTopics() {
+  return apiClient.get<ArticleTopicsResponse>("/articles/topics");
 }
 
 export function getArticle(articleId: number) {

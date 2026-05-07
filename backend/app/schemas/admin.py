@@ -1,4 +1,6 @@
+from datetime import datetime
 from typing import Dict, List
+from uuid import UUID
 
 from pydantic import BaseModel
 
@@ -16,3 +18,16 @@ class AdminStatsResponse(BaseModel):
     total_completion_tokens: int
     top_topics: List[AdminTopicCount]
     ratings: Dict[str, int]
+
+
+class AdminUserSummary(BaseModel):
+    user_id: UUID
+    username: str
+    email: str
+    role: str
+    created_at: datetime
+    explanation_count: int
+
+
+class AdminUsersResponse(BaseModel):
+    users: List[AdminUserSummary]

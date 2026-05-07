@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Home from "./pages/Home";
 import Feed from "./pages/Feed";
 import ArticleDetail from "./pages/ArticleDetail";
 import ReadingMap from "./pages/ReadingMap";
@@ -31,6 +32,14 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route
             path="/"
+            element={
+              <PrivateRoute>
+                <Home />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/browse"
             element={
               <PrivateRoute>
                 <Feed />

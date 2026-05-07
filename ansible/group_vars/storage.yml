@@ -1,5 +1,2 @@
 ---
 postgresql_version: 16
-db_name: cosmobrief
-db_user: cosmobrief
-pg_port: 5432
