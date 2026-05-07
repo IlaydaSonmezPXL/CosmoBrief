@@ -18,7 +18,7 @@ AutomationProject/
 │   │   ├── routers/
 │   │   │   ├── auth.py               # POST /auth/register, POST /auth/login
 │   │   │   ├── articles.py           # GET /articles (supports ?q=, ?topic=, ?state=, ?freshness=), GET /articles/topics, GET /articles/:id
-│   │   │   ├── explanations.py       # POST /articles/:id/explanations, GET history
+│   │   │   ├── explanations.py       # POST /articles/:id/explanations (admin only), GET history
 │   │   │   ├── ratings.py            # POST /articles/:id/explanations/:mode/:ver/rating
 │   │   │   ├── users.py              # GET /users/me, PATCH /users/me, DELETE /users/me/data, GET /users/:id/reading-map
 │   │   │   ├── admin.py              # GET /admin/stats, GET /admin/users (admin role only)
@@ -142,45 +142,48 @@ AutomationProject/
 │   │   │
 │   │   ├── backend/
 │   │   │   ├── tasks/
-│   │   │   │   └── main.yml          # Create system user, install python3.11 + python3.11-devel + rsync,
+│   │   │   │   └── main.yml          # Create system user, install python3.11 + python3.11-devel,
 │   │   │   │                         # keep openssh in sync with current openssl-libs,
 │   │   │   │                         # create venv, upgrade pip to latest (fixes bundled pip "from
 │   │   │   │                         # versions: none" on AlmaLinux 9), pip install -r requirements.txt,
-│   │   │   │                         # synchronize app code via ansible.posix.synchronize
-│   │   │   │                         # (excludes venv/__pycache__/pyc — venv built remote-side),
+│   │   │   │                         # archive source locally via tar (command, delegate_to localhost),
+│   │   │   │                         # transfer archive via copy, extract via unarchive on VM,
 │   │   │   │                         # template .env, run alembic upgrade head,
-│   │   │   │                         # deploy systemd service, start/enable service
+│   │   │   │                         # deploy systemd service, start/enable service,
+│   │   │   │                         # configure rsyslog forwarding (EXTRA3)
 │   │   │   ├── templates/
-│   │   │   │   ├── cosmobrief.env.j2 # Backend environment file (DB URL, JWT secret, OpenAI key)
+│   │   │   │   ├── cosmobrief.env.j2 # Backend environment file (DB URL, JWT secret, OpenAI key,
+│   │   │   │   │                     # AstronomyAPI app ID + secret, SNAPI cache TTL)
 │   │   │   │   ├── cosmobrief.service.j2 # systemd service unit for gunicorn
 │   │   │   │   └── gunicorn.conf.py.j2   # gunicorn workers, bind, log paths
 │   │   │   ├── handlers/
 │   │   │   │   └── main.yml          # restart cosmobrief, reload systemd, restart rsyslog, restart sshd
 │   │   │   └── defaults/
-│   │   │       └── main.yml          # app_dir, app_user, backend_port: 8000, gunicorn_workers
+│   │   │       └── main.yml          # app_user, app_group, venv_dir, service_name, log_dir, python_bin
 │   │   │
 │   │   └── frontend/
 │   │       ├── tasks/
 │   │       │   └── main.yml          # Install nginx, keep openssh in sync with current openssl-libs,
-│   │       │                         # template .env.production locally,
+│   │       │                         # template .env.production locally (delegate_to: localhost),
 │   │       │                         # run npm ci + npm run build (delegate_to: localhost),
-│   │       │                         # synchronize dist/ to VM, template nginx.conf,
+│   │       │                         # copy dist/ to VM, template nginx.conf,
+│   │       │                         # set SELinux httpd_can_network_connect boolean,
 │   │       │                         # open firewalld port, start/enable nginx,
 │   │       │                         # configure rsyslog forwarding (EXTRA3)
 │   │       ├── templates/
 │   │       │   ├── nginx.conf.j2     # Server block: port, root, /api/ proxy_pass, /health
-│   │       │   ├── env.production.j2 # VITE_API_URL=http://{{ backend_ip }}:{{ backend_port }}
+│   │       │   ├── env.production.j2 # VITE_API_URL=http://{{ ansible_host }}:{{ frontend_http_port }}/api
 │   │       │   └── rsyslog-client.conf.j2 # Forward logs to storage VM (EXTRA3)
 │   │       ├── handlers/
-│   │       │   └── main.yml          # reload nginx, restart rsyslog, restart sshd
+│   │       │   └── main.yml          # reload nginx, restart nginx, restart rsyslog, restart sshd
 │   │       └── defaults/
-│   │           └── main.yml          # frontend_http_port: 8080, webroot: /var/www/cosmobrief
+│   │           └── main.yml          # web_root: /var/www/cosmobrief, nginx_service_name: nginx
 │   │
 │   └── group_vars/
-│       ├── all.yml                   # app_name: cosmobrief, snapi_cache_ttl_minutes: 15
-│       ├── frontend.yml              # frontend_http_port: 8080
-│       ├── backend.yml               # backend_port: 8000, python_version: "3.11", gunicorn_workers formula
-│       └── storage.yml               # postgresql_version: "16", db_name, db_user, pg_port: 5432
+│       ├── all.yml                   # app_name, backend_port, snapi_cache_ttl_minutes, db_name, db_user, pg_port
+│       ├── frontend.yml              # frontend_http_port: 80 (AWS default)
+│       ├── backend.yml               # python_version: "3.11", app_dir, gunicorn_workers
+│       └── storage.yml               # postgresql_version: "16"
 │
 ├── local-deploy/
 │   ├── Vagrantfile                   # Three AlmaLinux 9 VMs at .10/.20/.30 — DO NOT MODIFY
@@ -386,7 +389,35 @@ alembic upgrade head
 
 ## Deployment Commands
 
-### Local Vagrant deployment
+> **Primary deployment target: AWS.** The commands below use the AWS inventory generated by the provisioning script. For Vagrant (testing only), see the Vagrant section below.
+
+### AWS — full deployment
+
+See the AWS Deployment Commands section below for the full provisioning + deploy flow.
+
+### AWS — redeploy a single tier
+
+Run from: repo root (requires `inventory.ini` generated by provisioning script):
+
+```bash
+ansible-playbook -i inventory.ini ansible/playbook.yml --vault-password-file .vault_pass --limit storage
+ansible-playbook -i inventory.ini ansible/playbook.yml --vault-password-file .vault_pass --limit backend
+ansible-playbook -i inventory.ini ansible/playbook.yml --vault-password-file .vault_pass --limit frontend
+```
+
+### AWS — verify idempotency
+
+Run from: repo root
+
+```bash
+# Run the full playbook a second time against the live system.
+# Expected result: all tasks report "ok", zero "changed", no service restarts.
+ansible-playbook -i inventory.ini ansible/playbook.yml --vault-password-file .vault_pass
+```
+
+---
+
+### Local Vagrant deployment (testing only)
 
 **Prerequisites:** Vagrant + vagrant-libvirt installed. `ansible/vault.yml` populated and `.vault_pass` present at repo root.
 
@@ -400,39 +431,17 @@ vagrant up
 # Step 2: Verify SSH connectivity
 ansible all -m ping -i local-deploy/inventory.ini
 
-# Step 3: Deploy the full application (single command, from repo root)
-ansible-playbook -i local-deploy/inventory.ini ansible/playbook.yml --vault-password-file .vault_pass
+# Step 3: Deploy the full application (from repo root; override port since default is 80 for AWS)
+ansible-playbook -i local-deploy/inventory.ini ansible/playbook.yml --vault-password-file .vault_pass -e "frontend_http_port=8080"
 ```
 
-### Redeploy a single tier
-
-Run from: repo root
-
-```bash
-ansible-playbook -i local-deploy/inventory.ini ansible/playbook.yml --vault-password-file .vault_pass --limit storage
-ansible-playbook -i local-deploy/inventory.ini ansible/playbook.yml --vault-password-file .vault_pass --limit backend
-ansible-playbook -i local-deploy/inventory.ini ansible/playbook.yml --vault-password-file .vault_pass --limit frontend
-```
-
-### Verify idempotency
-
-Run from: repo root
-
-```bash
-# Run the full playbook a second time against the live system.
-# Expected result: all tasks report "ok", zero "changed", no service restarts.
-ansible-playbook -i local-deploy/inventory.ini ansible/playbook.yml --vault-password-file .vault_pass
-```
-
-### Clean up local VMs
+### Vagrant — clean up
 
 Run from: `local-deploy/`
 
 ```bash
 vagrant destroy -f
-
-# If SSH known_hosts entries are stale after recreating machines:
-./clean_known_hosts.sh
+./clean_known_hosts.sh  # clear stale SSH known_hosts entries
 ```
 
 ---
@@ -468,10 +477,10 @@ All three hosts must respond before deploying.
 Run from: repo root
 
 ```bash
-ansible-playbook -i inventory.ini ansible/playbook.yml --vault-password-file .vault_pass -e "frontend_http_port=80"
+ansible-playbook -i inventory.ini ansible/playbook.yml --vault-password-file .vault_pass
 ```
 
-The same `ansible/playbook.yml` and all three roles are used for both Vagrant and AWS. The extra variable `frontend_http_port=80` overrides the group_vars default (8080 for Vagrant) so nginx listens on port 80 and the Vite build bakes in the correct URL. No committed files differ between the two environments.
+The same `ansible/playbook.yml` and all three roles are used for both Vagrant and AWS. `frontend_http_port: 80` is the group_vars default (AWS target), so no extra variable is needed. No committed files differ between the two environments.
 
 ### Step 4 — Verify deployment
 
@@ -502,11 +511,11 @@ This destroys all AWS resources created by the provisioning script. Verify in th
 |---|---|---|
 | `playbook.yml` | `ansible/` | Entry point. Four plays: `hosts: storage`, `hosts: backend`, `hosts: frontend`, and a fourth `hosts: storage` seed play. The seed play runs after the backend play so that Alembic has already created the `users` and `wordle_words` tables. Seeds admin user (`seed_admin.yml`) and wordle word list (`seed_wordle.yml`), both idempotent via `ON CONFLICT DO NOTHING`. |
 | `vault.yml` | `ansible/` | Ansible Vault encrypted. Contains all secrets. Never commit decrypted. |
-| `all.yml` | `ansible/group_vars/` | Variables shared across all tiers: `app_name`, `snapi_cache_ttl_minutes`. |
-| `frontend.yml` | `ansible/group_vars/` | `frontend_http_port: 8080` (Vagrant default). Pass `-e "frontend_http_port=80"` when deploying to AWS. |
-| `backend.yml` | `ansible/group_vars/` | `backend_port: 8000`, `python_version: "3.11"`, `gunicorn_workers`. |
-| `storage.yml` | `ansible/group_vars/` | `postgresql_version: "16"`, `pg_port: 5432`, `db_name: cosmobrief`, `db_user: cosmobrief`. |
-| `cosmobrief.env.j2` | `ansible/roles/backend/templates/` | Rendered to `/opt/cosmobrief/.env` on the backend VM. Injects `DATABASE_URL`, `JWT_SECRET_KEY`, `OPENAI_API_KEY`, `SNAPI_CACHE_TTL_MINUTES` from vault and group vars. |
+| `all.yml` | `ansible/group_vars/` | Variables shared across all tiers: `app_name`, `backend_port`, `snapi_cache_ttl_minutes`, `db_name`, `db_user`, `pg_port`. |
+| `frontend.yml` | `ansible/group_vars/` | `frontend_http_port: 80` (AWS default). For Vagrant, pass `-e "frontend_http_port=8080"` at deploy time. |
+| `backend.yml` | `ansible/group_vars/` | `python_version: "3.11"`, `app_dir: /opt/cosmobrief`, `gunicorn_workers: 5`. |
+| `storage.yml` | `ansible/group_vars/` | `postgresql_version: "16"`. |
+| `cosmobrief.env.j2` | `ansible/roles/backend/templates/` | Rendered to `/opt/cosmobrief/.env` on the backend VM. Injects `DATABASE_URL`, `JWT_SECRET_KEY`, `OPENAI_API_KEY`, `ASTRONOMY_APP_ID`, `ASTRONOMY_APP_SECRET`, `SNAPI_CACHE_TTL_MINUTES` from vault and group vars. |
 | `cosmobrief.service.j2` | `ansible/roles/backend/templates/` | systemd service unit. `ExecStart` calls gunicorn from the virtualenv. `EnvironmentFile` points to the rendered `.env`. |
 | `gunicorn.conf.py.j2` | `ansible/roles/backend/templates/` | bind, workers, worker_class, log paths. Workers = `(ansible_processor_vcpus * 2) + 1`. |
 | `nginx.conf.j2` | `ansible/roles/frontend/templates/` | Full nginx.conf (replaces default). Serves `dist/` on `{{ frontend_http_port }}`. `/api/` proxied to `http://{{ hostvars['backend']['ansible_host'] }}:{{ backend_port }}/`. `/health` returns `{"status":"ok","service":"frontend"}` inline. SPA fallback via `try_files`. |
@@ -521,11 +530,11 @@ This destroys all AWS resources created by the provisioning script. Verify in th
 
 The frontend needs to know the backend's address at **build time** (Vite injects `VITE_API_URL` into the JS bundle during `npm run build`). The Ansible frontend role:
 
-1. Renders `env.production.j2` → `frontend/.env.production` **on the Ansible control node** using `template` with `delegate_to: localhost`. This template reads `{{ hostvars['backend']['ansible_host'] }}` and `{{ backend_port }}` from the inventory and group vars.
+1. Renders `env.production.j2` → `frontend/.env.production` **on the Ansible control node** using `template` with `delegate_to: localhost`. The template produces `VITE_API_URL=http://{{ ansible_host }}:{{ frontend_http_port }}/api` — the **frontend's own IP and port**, so the browser calls nginx at `/api/*` and nginx proxies it to the backend.
 2. Runs `npm ci` and `npm run build` on the control node via `ansible.builtin.command` with `delegate_to: localhost`.
 3. Copies `frontend/dist/` to the frontend VM using `ansible.builtin.copy`.
 
-This means the backend IP is baked into the JS bundle at deploy time. This works correctly for both Vagrant (static IPs) and AWS (private IPs from the generated inventory).
+This means the frontend's own address is baked into the JS bundle at deploy time. nginx's `/api/` proxy pass handles routing to the backend, keeping the backend address out of the client bundle. Works correctly for both Vagrant (static IPs) and AWS (public IP from the generated inventory).
 
 ### Database schema flow
 
@@ -545,11 +554,12 @@ This means the backend IP is baked into the JS bundle at deploy time. This works
 
 ### Inventory and IP addresses
 
-The Ansible inventory (`local-deploy/inventory.ini`) defines the three hosts and their IPs. All references to machine addresses in templates and playbooks use inventory variables:
+The Ansible inventory defines the three hosts and their IPs. For AWS, the generated `inventory.ini` at repo root is used; for Vagrant, `local-deploy/inventory.ini`. All references to machine addresses in templates and playbooks use inventory variables:
 
 ```
-{{ hostvars['backend']['ansible_host'] }}   # resolves to 10.10.0.20 (Vagrant) or private IP (AWS)
-{{ hostvars['storage']['ansible_host'] }}   # resolves to 10.10.0.30
+{{ hostvars[groups['backend'][0]]['ansible_host'] }}   # resolves to backend private IP
+{{ hostvars[groups['storage'][0]]['ansible_host'] }}   # resolves to storage private IP
+{{ ansible_host }}                                     # resolves to the current host's IP
 ```
 
 No IP address is hardcoded in any template, role, or playbook.

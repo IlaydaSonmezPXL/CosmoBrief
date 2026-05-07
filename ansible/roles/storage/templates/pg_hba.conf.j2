@@ -9,4 +9,4 @@ host    all             all             127.0.0.1/32                            
 host    all             all             ::1/128                                     scram-sha-256
 
 # Backend application — IP resolved from inventory at deploy time
-host    {{ db_name }}   {{ db_user }}   {{ hostvars['backend']['ansible_host'] }}/32   scram-sha-256
+host    {{ db_name }}   {{ db_user }}   {{ hostvars[groups['backend'][0]]['ansible_host'] }}/32   scram-sha-256

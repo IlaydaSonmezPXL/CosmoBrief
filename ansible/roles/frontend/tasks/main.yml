@@ -85,6 +85,7 @@
     permanent: true
     state: enabled
     immediate: true
+  when: ansible_distribution != "Amazon"
 
 - name: Enable and start nginx
   systemd:
@@ -93,6 +94,11 @@
     enabled: true
 
 # ── EXTRA3: rsyslog forwarding to central storage receiver ───────────────────
+- name: Ensure rsyslog is installed
+  dnf:
+    name: rsyslog
+    state: present
+
 - name: Deploy rsyslog client forwarding configuration
   template:
     src: rsyslog-client.conf.j2

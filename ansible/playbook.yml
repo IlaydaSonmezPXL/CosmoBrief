@@ -1,6 +1,8 @@
 ---
-# Deploy command (from repo root):
-#   ansible-playbook -i local-deploy/inventory.ini ansible/playbook.yml --vault-password-file .vault_pass
+# AWS deploy command (from repo root):
+#   ansible-playbook -i inventory.ini ansible/playbook.yml --vault-password-file .vault_pass
+# Vagrant deploy (if needed):
+#   ansible-playbook -i local-deploy/inventory.ini ansible/playbook.yml --vault-password-file .vault_pass -e "frontend_http_port=8080"
 # Single tier:
 #   ... --limit storage | --limit backend | --limit frontend
 

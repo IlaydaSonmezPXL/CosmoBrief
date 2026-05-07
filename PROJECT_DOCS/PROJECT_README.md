@@ -10,18 +10,19 @@ Three-tier web application deployed across three machines.
 
 | Machine | Address | Tier | Technology | Port |
 |---|---|---|---|---|
-| `frontend` | `10.10.0.10` | Frontend | React (static), nginx | 8080 (Vagrant) / 80 (AWS) |
-| `backend` | `10.10.0.20` | Backend | Python 3.11, FastAPI, gunicorn + uvicorn | 8000 |
-| `storage` | `10.10.0.30` | Storage | PostgreSQL 16 | 5432 |
+| `frontend` | public IP (AWS) | Frontend | React (static), nginx | 80 |
+| `backend` | private IP (AWS) | Backend | Python 3.11, FastAPI, gunicorn + uvicorn | 8000 |
+| `storage` | private IP (AWS) | Storage | PostgreSQL 16 | 5432 |
 
 **Communication flow:**
 
 ```
-Browser → nginx (10.10.0.10:8080)
-nginx proxies /api/* → FastAPI (10.10.0.20:8000)
-FastAPI → PostgreSQL (10.10.0.30:5432)
+Browser → nginx (frontend:80)
+nginx proxies /api/* → FastAPI (backend:8000)
+FastAPI → PostgreSQL (storage:5432)
 FastAPI → SNAPI (external, no auth)
 FastAPI → OpenAI API (external, key in vault)
+FastAPI → AstronomyAPI (external, key in vault)
 ```
 
 The frontend is a compiled React application served as static files. nginx proxies `/api/` requests to the backend. The frontend never contacts the storage tier or external APIs directly.
@@ -78,57 +79,63 @@ python3 -c "from passlib.context import CryptContext; print(CryptContext(schemes
 
 ## Deployment
 
-### Local Vagrant
+### AWS (primary)
 
-**Step 1 — Start the machines (one-time):**
-```bash
-cd local-deploy
-vagrant up
-```
+After provisioning (see AWS Deployment section below), deploy with one command from repo root:
 
-**Step 2 — Deploy the application (from repo root):**
 ```bash
-ansible-playbook -i local-deploy/inventory.ini ansible/playbook.yml --vault-password-file .vault_pass
+ansible-playbook -i inventory.ini ansible/playbook.yml --vault-password-file .vault_pass
 ```
 
 This single command configures all three machines and deploys the full application. No manual steps follow.
 
-### Redeploy a single tier
+### Redeploy a single tier (AWS)
 
 ```bash
 # Frontend only
-ansible-playbook -i local-deploy/inventory.ini ansible/playbook.yml --vault-password-file .vault_pass --limit frontend
+ansible-playbook -i inventory.ini ansible/playbook.yml --vault-password-file .vault_pass --limit frontend
 
 # Backend only
-ansible-playbook -i local-deploy/inventory.ini ansible/playbook.yml --vault-password-file .vault_pass --limit backend
+ansible-playbook -i inventory.ini ansible/playbook.yml --vault-password-file .vault_pass --limit backend
 
 # Storage only
-ansible-playbook -i local-deploy/inventory.ini ansible/playbook.yml --vault-password-file .vault_pass --limit storage
+ansible-playbook -i inventory.ini ansible/playbook.yml --vault-password-file .vault_pass --limit storage
+```
+
+### Vagrant (testing only)
+
+```bash
+cd local-deploy && vagrant up
+ansible-playbook -i local-deploy/inventory.ini ansible/playbook.yml --vault-password-file .vault_pass -e "frontend_http_port=8080"
 ```
 
 ---
 
 ## Accessing the Application
 
-After deployment:
+After AWS deployment (replace `<FRONTEND_IP>` with the public IP from `inventory.ini`):
 
 | Resource | URL |
 |---|---|
-| Application | http://10.10.0.10:8080 |
-| Backend API docs | http://10.10.0.20:8000/docs |
-| Frontend health | http://10.10.0.10:8080/health |
-| Backend health | http://10.10.0.20:8000/health |
+| Application | http://\<FRONTEND_IP\> |
+| Backend API docs | http://\<FRONTEND_IP\>/api/docs |
+| Frontend health | http://\<FRONTEND_IP\>/health |
+| Backend health | http://\<FRONTEND_IP\>/api/health |
+
+```bash
+FRONTEND_IP=$(grep '^frontend ' inventory.ini | grep -oP 'ansible_host=\K[^ ]+')
+```
 
 ---
 
 ## Health Checks
 
-**Frontend** — `GET http://10.10.0.10:8080/health`
+**Frontend** — `GET http://<FRONTEND_IP>/health`
 ```json
 { "status": "ok", "service": "frontend" }
 ```
 
-**Backend** — `GET http://10.10.0.20:8000/health`
+**Backend** — `GET http://<FRONTEND_IP>/api/health`
 ```json
 {
   "status": "ok",
@@ -147,7 +154,7 @@ Storage health is verified through the backend health endpoint, which executes a
 | Extra | Points | Description |
 |---|---|---|
 | EXTRA1 | 1 | **Token-based authentication.** JWT issued on login, verified on all protected routes. Credentials stored in PostgreSQL, never hardcoded. |
-| EXTRA2 | 1 | **Role-based authorization.** Two roles: `user` and `admin`. `GET /admin/stats` and `GET /admin/users` are backend-enforced for admin only. Non-admin users receive HTTP 403. |
+| EXTRA2 | 1 | **Role-based authorization.** Two roles: `user` and `admin`. `POST /articles/:id/explanations` (AI generation), `GET /admin/stats`, and `GET /admin/users` are backend-enforced for admin only. Non-admin users receive HTTP 403. The frontend hides the AI Briefing section entirely for non-admin users. |
 | EXTRA3 | 1 | **Central logging.** rsyslog on the storage VM collects logs from all three tiers. Log source is identifiable by hostname. Configured entirely via Ansible. |
 | EXTRA4 | 3 | **AWS Academy deployment.** Same Ansible roles, separate inventory. Frontend in public subnet, backend and storage in private subnet. ProxyJump through frontend. See below and `provisioning/PE2_PROVISIONING_QUICK_START.md`. |
 
@@ -169,6 +176,8 @@ Storage health is verified through the backend health endpoint, which executes a
 
 The same `ansible/playbook.yml` and roles deploy to AWS without modification. The provisioning script generates the inventory.
 
+**Amazon Linux 2023 compatibility:** The EC2 instances provisioned by `provision_pe2_nat_bastion.sh` run Amazon Linux 2023. All three Ansible roles contain `when: ansible_distribution != "Amazon"` guards on tasks that do not apply to Amazon Linux (PGDG repo install, AppStream module disable, firewalld, openssl resync). On Amazon Linux, PostgreSQL 16 is installed from the native Amazon repos. The roles detect the distribution automatically — no manual changes are needed between Vagrant (AlmaLinux 9) and AWS (Amazon Linux 2023).
+
 **Prerequisites:** AWS CLI configured, SSH key pair, `ansible-galaxy collection install -r ansible/requirements.yml`.
 
 **Step 1 — Provision** (run from repo root):
@@ -189,10 +198,10 @@ ansible all -m ping
 **Step 3 — Deploy** (run from repo root):
 
 ```bash
-ansible-playbook -i inventory.ini ansible/playbook.yml --vault-password-file .vault_pass -e "frontend_http_port=80"
+ansible-playbook -i inventory.ini ansible/playbook.yml --vault-password-file .vault_pass
 ```
 
-The `-e "frontend_http_port=80"` overrides the Vagrant default (8080) so nginx listens on port 80 and the React build uses the correct URL.
+`frontend_http_port: 80` is the group_vars default (AWS target), so no extra variable override is needed.
 
 **Step 4 — Health check:**
 
@@ -219,21 +228,22 @@ The following tasks use `ansible.builtin.command` or `ansible.builtin.shell` bec
 | Disable AppStream postgresql module (`dnf -qy module disable postgresql`) | `ansible/roles/storage/tasks/main.yml` | No Ansible built-in or `community.general` module covers DNF module stream disabling on EL9. Must run before PGDG repo install to prevent AppStream from shadowing the PGDG package. `changed_when: false` — re-running is safe and idempotent. |
 | PostgreSQL cluster initialisation (`postgresql-16-setup initdb`) | `ansible/roles/storage/tasks/main.yml` | No Ansible module exists for initialising a PostgreSQL data cluster on RHEL-family systems. Guarded with `creates: /var/lib/pgsql/16/data/PG_VERSION` — only runs on first deploy. |
 | Database migrations (`alembic upgrade head`) | `ansible/roles/backend/tasks/main.yml` | No Ansible module exists for running Alembic schema migrations. `changed_when` is set to detect actual migration output so the task reports no change when no new migrations exist. |
+| Backend source archive (`tar czf /tmp/cosmobrief-backend.tar.gz`) | `ansible/roles/backend/tasks/main.yml` | No built-in Ansible module creates a tar archive from a local directory while excluding multiple subdirectories by glob (venv, pycache, pyc, .pytest_cache, .mypy_cache). The `community.general.archive` module would require an additional Galaxy collection not otherwise needed. Runs on the Ansible control node via `delegate_to: localhost`. `changed_when: true` — the archive is always recreated to capture any source change; the subsequent `unarchive` task performs the real idempotency check on the VM side. |
 | `npm ci` (install dependencies) | `ansible/roles/frontend/tasks/main.yml` | No Ansible module exists for `npm ci`. Runs on the Ansible control node via `delegate_to: localhost`. `changed_when: false` — always runs to ensure a clean install, never reports a spurious change. |
 | `npm run build` (Vite production build) | `ansible/roles/frontend/tasks/main.yml` | No Ansible module exists for running npm scripts. Runs on the Ansible control node via `delegate_to: localhost`. `changed_when: false` — the resulting `dist/` files are content-hashed; the subsequent `copy` task detects actual file changes and reports them. |
 | Exclude openssl from PGDG repos (shell loop over `/etc/yum.repos.d/pgdg-*.repo`) | `ansible/roles/storage/tasks/main.yml` | No Ansible module can conditionally append a `dnf.conf` key to a set of repo files matched by glob. A shell `for` loop with `grep`/`sed` is the only option. `changed_when: false` — re-running is safe: the `grep` guard ensures the line is added at most once. |
 
-**SELinux note:** The frontend role sets `httpd_can_network_connect = yes` via `ansible.posix.seboolean`. Without this, nginx (which runs in the `httpd_t` SELinux domain on AlmaLinux 9) cannot proxy to the backend and returns `502 Bad Gateway` on all API calls. This is a required idempotent step — running a second time is a no-op since the boolean is already set.
+**SELinux note (AlmaLinux 9 / Vagrant only):** The frontend role sets `httpd_can_network_connect = yes` via `ansible.posix.seboolean`. Without this, nginx (which runs in the `httpd_t` SELinux domain on AlmaLinux 9) cannot proxy to the backend and returns `502 Bad Gateway`. This task is guarded with `when: ansible_distribution != "Amazon"` — it does not run on AWS (Amazon Linux 2023 does not enforce this SELinux policy for nginx). Idempotent on re-run.
 
-**OpenSSL/OpenSSH ABI guard:** The `generic/alma9` Vagrant box ships an `openssh-server` built against an older OpenSSL than the `openssl-libs` that gets pulled in as a transitive dependency on first deploy. Without intervention, sshd crashes mid-deploy with `OpenSSL version mismatch` and the host becomes unreachable. Two tasks in the roles prevent this:
+**OpenSSL/OpenSSH ABI guard (AlmaLinux 9 / Vagrant only):** The `generic/alma9` Vagrant box ships `openssh-server` built against an older OpenSSL ABI than what the PGDG repo pulls in as a dependency. Without intervention, sshd crashes mid-deploy with `OpenSSL version mismatch`. All three roles contain two guards:
 
-- The storage role injects `excludepkgs=openssl*` into every `/etc/yum.repos.d/pgdg-*.repo` section right after the PGDG repo install, so PGDG can never replace the system `openssl-libs`.
-- All three roles (storage, backend, frontend) run a `dnf state: latest` on `openssh` + `openssh-server` immediately after their main package install. This rebuilds sshd against whatever `openssl-libs` is now on the host. A `Restart sshd` handler is registered in each role.
+- Storage role: injects `excludepkgs=openssl*` into every PGDG repo file so PGDG never replaces system `openssl-libs`.
+- All roles: run `dnf state: latest` on `openssh` + `openssh-server` after their main package install to resync sshd with the current `openssl-libs`.
 
-If a VM was already broken by this issue before the guards were added, see `PROJECT_DOCS/TROUBLESHOOTING.md` for the recovery procedure (VNC console + `dnf upgrade openssh openssh-server`).
+Both guards are conditioned `when: ansible_distribution != "Amazon"` and do not run on AWS.
 
 ---
 
 ## Troubleshooting
 
-See `PROJECT_DOCS/TROUBLESHOOTING.md` for known deployment issues and recovery steps. Most common symptom covered there: SSH `Connection refused` / `Connection reset by peer` to a VM after the first dnf transaction, caused by an OpenSSH/OpenSSL ABI mismatch on the stock `generic/alma9` box image.
+See `PROJECT_DOCS/TROUBLESHOOTING.md` for known deployment issues. The OpenSSL/OpenSSH ABI issue only affects AlmaLinux 9 (Vagrant). AWS (Amazon Linux 2023) is not affected.

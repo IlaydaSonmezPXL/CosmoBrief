@@ -43,20 +43,31 @@
     group: "{{ app_group }}"
     mode: "0755"
 
-- name: Copy backend source code
-  ansible.posix.synchronize:
-    src: "{{ playbook_dir }}/../backend/"
+- name: Archive backend source code locally
+  command: >
+    tar czf /tmp/cosmobrief-backend.tar.gz
+    --exclude=./venv --exclude=./venv2 --exclude=./__pycache__
+    --exclude=./*.pyc --exclude=./.pytest_cache --exclude=./.mypy_cache
+    .
+  args:
+    chdir: "{{ playbook_dir }}/../backend"
+  delegate_to: localhost
+  become: false
+  changed_when: true
+
+- name: Transfer backend archive
+  copy:
+    src: /tmp/cosmobrief-backend.tar.gz
+    dest: /tmp/cosmobrief-backend.tar.gz
+    mode: "0644"
+
+- name: Extract backend source code
+  unarchive:
+    src: /tmp/cosmobrief-backend.tar.gz
     dest: "{{ app_dir }}/"
-    rsync_path: "sudo rsync"
-    rsync_opts:
-      - "--exclude=venv"
-      - "--exclude=venv2"
-      - "--exclude=__pycache__"
-      - "--exclude=*.pyc"
-      - "--exclude=.pytest_cache"
-      - "--exclude=.mypy_cache"
-      - "--chmod=D755,F644"
-      - "--chown={{ app_user }}:{{ app_group }}"
+    remote_src: yes
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
   notify: Restart cosmobrief
 
 - name: Render backend environment file
@@ -134,8 +145,14 @@
     permanent: true
     state: enabled
     immediate: true
+  when: ansible_distribution != "Amazon"
 
 # ── EXTRA3: rsyslog forwarding to central storage receiver ───────────────────
+- name: Ensure rsyslog is installed
+  dnf:
+    name: rsyslog
+    state: present
+
 - name: Deploy rsyslog client forwarding configuration
   template:
     src: rsyslog-client.conf.j2

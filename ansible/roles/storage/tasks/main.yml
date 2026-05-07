@@ -1,31 +1,46 @@
 ---
+# ── 0. OS-specific variable overrides ────────────────────────────────────────
+# Amazon Linux 2023 ships PostgreSQL 16 natively; paths differ from PGDG.
+- name: Override PostgreSQL paths for Amazon Linux 2023
+  set_fact:
+    pg_data_dir: /var/lib/pgsql/data
+    pg_service_name: postgresql
+    pg_bin_dir: /usr/bin
+    pg_setup_bin: /usr/bin/postgresql-setup
+  when: ansible_distribution == "Amazon"
+
 # ── 1. Disable AppStream postgresql module ───────────────────────────────────
 # Must run before PGDG repo install. No suitable Ansible module exists for
 # dnf module operations; command use justified in PROJECT_README.md.
+# Skipped on Amazon Linux 2023 — no AppStream module system present.
 - name: Disable built-in postgresql AppStream module
   command: dnf -qy module disable postgresql
   changed_when: false
+  when: ansible_distribution != "Amazon"
 
-# ── 2. PGDG repository ───────────────────────────────────────────────────────
+# ── 2. PGDG repository (RHEL/AlmaLinux only) ─────────────────────────────────
+# Amazon Linux 2023 ships PostgreSQL 16 in its own repos; PGDG RPM requires
+# /etc/redhat-release which does not exist on Amazon Linux.
 - name: Import PGDG repository GPG key
   rpm_key:
     key: https://download.postgresql.org/pub/repos/yum/keys/RPM-GPG-KEY-PGDG
     state: present
+  when: ansible_distribution != "Amazon"
 
 - name: Import PGDG RHEL repo signing key
   rpm_key:
     key: https://download.postgresql.org/pub/repos/yum/keys/PGDG-RPM-GPG-KEY-RHEL
     state: present
+  when: ansible_distribution != "Amazon"
 
 - name: Install PGDG repository RPM
   dnf:
     name: "https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm"
     state: present
     disable_gpg_check: false
+  when: ansible_distribution != "Amazon"
 
 # Prevent PGDG from shipping openssl-libs that would break stock openssh ABI.
-# Without this, installing PostgreSQL can replace system openssl-libs and
-# crash sshd with "OpenSSL version mismatch", locking us out of the host.
 - name: Exclude openssl packages from PGDG repos
   ansible.builtin.shell: |
     set -e
@@ -35,6 +50,7 @@
         sed -i '/^\[pgdg.*\]/a excludepkgs=openssl*' "$f"
     done
   changed_when: false
+  when: ansible_distribution != "Amazon"
 
 # ── 3. Packages ──────────────────────────────────────────────────────────────
 # python3-psycopg2 required by community.postgresql modules on managed host.
@@ -46,8 +62,8 @@
       - python3-psycopg2
     state: present
 
-# Resync openssh against whatever openssl-libs ended up installed, so the
-# sshd binary's compiled OpenSSL ABI matches the runtime library.
+# Resync openssh against whatever openssl-libs ended up installed.
+# Skipped on Amazon Linux — no PGDG openssl risk there.
 - name: Keep openssh in sync with current openssl-libs
   dnf:
     name:
@@ -55,15 +71,21 @@
       - openssh-server
     state: latest
   notify: Restart sshd
+  when: ansible_distribution != "Amazon"
 
 # ── 4. Cluster initialisation ─────────────────────────────────────────────────
 # creates: guards against re-running initdb on an existing cluster.
-# No suitable Ansible module exists for postgresql cluster init on PGDG;
-# command use justified in PROJECT_README.md.
-- name: Initialize PostgreSQL cluster
+- name: Initialize PostgreSQL cluster (PGDG)
   command: "{{ pg_setup_bin }} initdb"
   args:
     creates: "{{ pg_data_dir }}/PG_VERSION"
+  when: ansible_distribution != "Amazon"
+
+- name: Initialize PostgreSQL cluster (Amazon Linux)
+  command: "{{ pg_setup_bin }} --initdb"
+  args:
+    creates: "{{ pg_data_dir }}/PG_VERSION"
+  when: ansible_distribution == "Amazon"
 
 # ── 5. Enable and start service ───────────────────────────────────────────────
 - name: Enable and start PostgreSQL service
@@ -78,6 +100,7 @@
     permanent: true
     state: enabled
     immediate: true
+  when: ansible_distribution != "Amazon"
 
 # ── 6. Configuration templates ────────────────────────────────────────────────
 # postgresql.conf changes (listen_addresses, port) require a full restart.
@@ -133,6 +156,7 @@
     permanent: true
     state: enabled
     immediate: true
+  when: ansible_distribution != "Amazon"
 
 - name: Open rsyslog TCP port in firewalld
   ansible.posix.firewalld:
@@ -140,6 +164,7 @@
     permanent: true
     state: enabled
     immediate: true
+  when: ansible_distribution != "Amazon"
 
 - name: Enable and start rsyslog
   systemd:
