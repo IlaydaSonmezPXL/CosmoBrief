@@ -57,6 +57,8 @@ Secrets managed in vault:
 | `vault_db_admin_password` | PostgreSQL postgres superuser password |
 | `vault_jwt_secret_key` | JWT signing secret (≥32 chars) |
 | `vault_openai_api_key` | OpenAI API key |
+| `vault_astronomy_app_id` | AstronomyAPI application ID (Astronomical Events widget) |
+| `vault_astronomy_app_secret` | AstronomyAPI application secret (Astronomical Events widget) |
 | `vault_admin_username` | Admin account username |
 | `vault_admin_email` | Admin account email |
 | `vault_admin_password_hash` | Pre-computed bcrypt hash of admin password |

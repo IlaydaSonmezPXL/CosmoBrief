@@ -120,6 +120,7 @@ AutomationProject/
 │   ├── playbook.yml                  # Entry point: four plays (storage, backend, frontend, seed)
 │   │                                 # Play 4 seeds admin user AND wordle word list
 │   ├── vault.yml                     # Ansible Vault encrypted secrets (NEVER commit decrypted)
+│   ├── requirements.yml              # Galaxy collections: community.postgresql ≥3.0.0, ansible.posix ≥1.5.0
 │   ├── roles/
 │   │   ├── storage/
 │   │   │   ├── tasks/
@@ -194,11 +195,30 @@ AutomationProject/
 │   ├── provision_pe2_nat_bastion.sh
 │   └── teardown_pe2_nat_bastion.sh
 │
+├── DESIGN/                           # UI/UX documentation
+│   ├── THEME.md                      # CSS token system, colour palette, typography, design principles
+│   ├── COMPONENTS.md                 # Copy-paste class patterns for every UI component
+│   └── ROADMAP.md                    # Planned UI features, design decisions
+│
+├── PROJECT_PHASES/                   # Phase-by-phase implementation notes
+│   ├── PHASE1.md                     # Storage role (PostgreSQL, Alembic, seeding)
+│   ├── PHASE2.md                     # Backend role + application code
+│   ├── PHASE3.md                     # Frontend role + application code
+│   └── PHASE4.md                     # Extras (central logging, AWS deployment)
+│
+├── CosmicBrief-V2/                   # V2 design handoff artifacts (reference only)
+│   └── design_handoff_cosmo_brief_editorial/
+│
+├── CosmoBrief-V3/                    # V3 design handoff artifacts (reference only)
+│   └── design_handoff_cosmo_brief_screens/
+│
 ├── PROJECT_DOCS/
 │   ├── ASSIGNMENT.md                 # Original spec — read-only
 │   ├── CLAUDE.md                     # Agentic coding instructions — ask before changing
 │   ├── CLAUDEBEHAVIOR.md             # Behavioral guidelines — read-only
 │   ├── REQUIREMENTS.md               # Full requirements document — source of truth
+│   ├── PROJECT_README.md             # Submission entry document (canonical location)
+│   ├── PROJECT_STRUCTURE.md          # This file (canonical location)
 │   ├── TODO.md                       # Active implementation tasks
 │   ├── DONE.md                       # Completed tasks
 │   └── TROUBLESHOOTING.md            # Known deployment issues + recovery (e.g. OpenSSL/OpenSSH ABI break on stock generic/alma9)
@@ -207,8 +227,9 @@ AutomationProject/
 │   └── settings.json                 # Claude Code permissions
 ├── .vault_pass                       # Vault password — GIT-IGNORED, NEVER COMMIT
 ├── .gitignore
-├── PROJECT_README.md                 # This project's submission entry document
-└── PROJECT_STRUCTURE.md              # This file
+├── pe2.png                           # Assignment image asset
+├── PROJECT_README.md                 # Symlink → PROJECT_DOCS/PROJECT_README.md (required at root for grader)
+└── PROJECT_STRUCTURE.md              # Symlink → PROJECT_DOCS/PROJECT_STRUCTURE.md (required at root for grader)
 ```
 
 ---

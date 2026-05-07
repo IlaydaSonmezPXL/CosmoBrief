@@ -152,24 +152,30 @@ AutomationProject/
 │   │   ├── db.py              → Async SQLAlchemy engine, session factory, get_db dependency
 │   │   ├── routers/           → One file per API domain
 │   │   │   ├── auth.py        → POST /auth/register, POST /auth/login
-│   │   │   ├── articles.py    → GET /articles, GET /articles/:id, POST /articles/:id/state
+│   │   │   ├── articles.py    → GET /articles (+ ?q=/?topic=/?state=/?freshness=), GET /articles/topics, GET /articles/:id
 │   │   │   ├── explanations.py→ POST /articles/:id/explanations, GET history
 │   │   │   ├── ratings.py     → POST /articles/:id/explanations/:mode/:ver/rating
-│   │   │   ├── users.py       → GET /users/:id/reading-map
-│   │   │   ├── admin.py       → GET /admin/stats (admin role only)
-│   │   │   └── health.py      → GET /health
+│   │   │   ├── users.py       → GET /users/me, PATCH /users/me, DELETE /users/me/data, GET /users/:id/reading-map
+│   │   │   ├── admin.py       → GET /admin/stats, GET /admin/users (admin role only)
+│   │   │   ├── wordle.py      → GET /wordle/words (authenticated)
+│   │   │   ├── astronomical.py→ GET /astronomical/events?lat&lon
+│   │   │   └── health.py      → GET /health (live DB query)
 │   │   ├── models/            → SQLAlchemy ORM models (one file per table)
 │   │   │   ├── user.py
 │   │   │   ├── article_state.py
 │   │   │   ├── article_cache.py
 │   │   │   ├── explanation.py
-│   │   │   └── topic_tag.py
+│   │   │   ├── topic_tag.py
+│   │   │   └── wordle_word.py
 │   │   ├── schemas/           → Pydantic request/response models
 │   │   │   ├── auth.py
 │   │   │   ├── article.py
 │   │   │   ├── explanation.py
 │   │   │   ├── rating.py
-│   │   │   └── admin.py
+│   │   │   ├── admin.py
+│   │   │   ├── users.py
+│   │   │   ├── wordle.py
+│   │   │   └── astronomical.py
 │   │   ├── services/          → Business logic (no direct route handling)
 │   │   │   ├── state_machine.py  → Article state transition validation and enforcement
 │   │   │   ├── explanation_service.py → Generate-or-retrieve decision logic
@@ -187,44 +193,60 @@ AutomationProject/
 │   ├── alembic.ini
 │   └── requirements.txt
 │
-├── frontend/                  → React + Vite application
+├── frontend/                  → React 18 + Vite + TypeScript application
 │   ├── src/
-│   │   ├── main.jsx           → React entry point
-│   │   ├── App.jsx            → Router setup
-│   │   ├── api/               → Axios instances and typed API call wrappers
-│   │   │   ├── client.js      → Axios instance with base URL + auth header injection
-│   │   │   ├── articles.js
-│   │   │   ├── explanations.js
-│   │   │   └── auth.js
+│   │   ├── main.tsx           → React entry point; sets data-theme from localStorage before first render
+│   │   ├── App.tsx            → Router setup, PrivateRoute, AdminRoute; all routes wrapped in EditorialShell
+│   │   ├── index.css          → Global dark space theme + V2 editorial CSS + animation keyframes
+│   │   ├── editorial-v3.css   → V3 editorial tokens + all screen styles (masthead, nav, login, browse, map, cipher, admin)
+│   │   ├── api/               → Typed Axios wrappers (one file per domain)
+│   │   │   ├── client.ts      → Axios instance with base URL + Bearer injection + 401 interceptor
+│   │   │   ├── articles.ts    → listArticles, getArticle, getArticleTopics
+│   │   │   ├── explanations.ts→ requestExplanation, getExplanationHistory, rateExplanation
+│   │   │   ├── auth.ts        → register, login
+│   │   │   ├── users.ts       → getMe, updateMe, wipeUserData
+│   │   │   ├── wordle.ts      → getWordleWords
+│   │   │   └── astronomical.ts→ getAstronomicalEvents
 │   │   ├── components/        → Reusable UI components
+│   │   │   ├── EditorialShell.tsx → Shared V3 chrome: Masthead + BrandBar + TabNav + Footer
+│   │   │   ├── UserMenu.tsx       → Dropdown: theme swatches, settings, account, logout
+│   │   │   ├── AstronomicalEvents.tsx → Horizontal card strip: planets + curated sky events
+│   │   │   ├── ScrollToTop.tsx    → Scrolls to top on every route change
+│   │   │   ├── EarthIcon.tsx      → SVG Earth icon
+│   │   │   ├── Nav.tsx            → Legacy dark nav (kept for reference)
+│   │   │   └── EdNav.tsx          → Legacy V2 paper nav (kept for reference)
 │   │   ├── pages/             → Route-level page components
-│   │   │   ├── Login.jsx
-│   │   │   ├── Register.jsx
-│   │   │   ├── Feed.jsx
-│   │   │   ├── ArticleDetail.jsx
-│   │   │   ├── ReadingMap.jsx
-│   │   │   └── AdminDashboard.jsx
-│   │   ├── hooks/             → Custom React hooks
-│   │   └── context/           → AuthContext (JWT storage + user state)
+│   │   │   ├── Home.tsx        → V2 editorial home (/) — hero, sections, wordle promo, footer
+│   │   │   ├── Login.tsx       → V3 split-pane: editorial hero left + form right
+│   │   │   ├── Register.tsx    → V3 same template as Login
+│   │   │   ├── Feed.tsx        → Browse (/browse) — V3 dense rows; topic/state/freshness/search facets; AstronomicalEvents widget
+│   │   │   ├── ArticleDetail.tsx → 4 explanation modes, ratings, version history
+│   │   │   ├── ReadingMap.tsx  → SVG constellation: topic stars, pan/drag, click-to-panel
+│   │   │   ├── Wordle.tsx      → Daily Cipher: board + keyboard + stats panel; localStorage per user+date
+│   │   │   └── AdminDashboard.tsx → V3 Newsroom Desk: stats, token meter, users table, signal queue
+│   │   └── context/
+│   │       └── AuthContext.tsx → JWT in localStorage, user state (id, username, email, role), login/logout
 │   ├── .env.production        → Templated by Ansible. Contains VITE_API_URL only.
 │   ├── package.json
-│   └── vite.config.js
+│   ├── tsconfig.json          → Strict TypeScript, vite/client types
+│   └── vite.config.ts         → @vitejs/plugin-react
 │
 ├── storage/                   → Storage-tier setup (no application code)
 │   └── init/                  → Reference SQL for schema documentation only
 │                                 (Alembic is the source of truth for schema)
 │
 ├── ansible/                   → All Ansible code
-│   ├── playbook.yml           → Entry point: three plays targeting frontend/backend/storage groups
+│   ├── playbook.yml           → Entry point: four plays (storage, backend, frontend, seed)
+│   ├── requirements.yml       → Galaxy collections: community.postgresql ≥3.0.0, ansible.posix ≥1.5.0
 │   ├── roles/
 │   │   ├── frontend/          → Install nginx, build frontend, copy dist, template nginx.conf
 │   │   ├── backend/           → Install Python, create venv, copy app, template .env, systemd service
-│   │   └── storage/           → Install PostgreSQL 16, create DB + user, run Alembic, seed admin
+│   │   └── storage/           → Install PostgreSQL 16, create DB + user, run Alembic, seed admin + wordle words
 │   ├── group_vars/
-│   │   ├── all.yml            → app_name, backend_port, shared non-secret vars
-│   │   ├── frontend.yml       → frontend_http_port (8080 local / 80 AWS)
+│   │   ├── all.yml            → app_name, backend_port, db_name, db_user, pg_port, snapi_cache_ttl_minutes
+│   │   ├── frontend.yml       → frontend_http_port (8080 Vagrant / 80 AWS)
 │   │   ├── backend.yml        → python_version, app_dir, gunicorn_workers
-│   │   └── storage.yml        → postgresql_version (16), db_name, db_user, pg_port (5432)
+│   │   └── storage.yml        → postgresql_version: "16"
 │   ├── host_vars/             → Host-specific overrides if needed
 │   └── vault.yml              → Ansible Vault encrypted secrets (see Secrets section)
 │
@@ -232,22 +254,44 @@ AutomationProject/
 │   ├── Vagrantfile            → Three AlmaLinux 9 VMs (10.10.0.10/20/30)
 │   ├── inventory.ini          → Ansible inventory for local VMs
 │   ├── ansible.cfg            → Points to inventory.ini
+│   ├── clean_known_hosts.sh   → Clears stale SSH known_hosts after vagrant destroy
+│   ├── nuke_all_vagrant.sh    → Nuclear option: destroy all VMs and libvirt state
 │   └── playbook.yml           → Empty stub. Real playbook is at ansible/playbook.yml.
 │
 ├── provisioning/              → AWS provisioning scripts (do not modify)
-│   └── PE2_PROVISIONING_QUICK_START.md
+│   ├── PE2_PROVISIONING_QUICK_START.md
+│   ├── provision_pe2_nat_bastion.sh
+│   └── teardown_pe2_nat_bastion.sh
+│
+├── DESIGN/                    → UI/UX documentation
+│   ├── THEME.md               → CSS token system, palette, typography
+│   ├── COMPONENTS.md          → Copy-paste class patterns for UI components
+│   └── ROADMAP.md             → UI feature planning and design decisions
+│
+├── PROJECT_PHASES/            → Phase-by-phase implementation notes
+│   ├── PHASE1.md              → Storage role
+│   ├── PHASE2.md              → Backend role + application code
+│   ├── PHASE3.md              → Frontend role + application code
+│   └── PHASE4.md              → Extras (logging, AWS)
+│
+├── CosmicBrief-V2/            → V2 design handoff artifacts (reference only)
+├── CosmoBrief-V3/             → V3 design handoff artifacts (reference only)
 │
 ├── PROJECT_DOCS/              → Project documentation and planning
 │   ├── ASSIGNMENT.md          → Original assignment spec (read-only)
 │   ├── CLAUDE.md              → This file
 │   ├── CLAUDEBEHAVIOR.md      → Behavioral rules (read-only)
 │   ├── REQUIREMENTS.md        → Full requirements document (source of truth)
+│   ├── PROJECT_README.md      → Submission entry doc (symlinked to repo root)
+│   ├── PROJECT_STRUCTURE.md   → Submission structure doc (symlinked to repo root)
 │   ├── TODO.md                → Active tasks
-│   └── DONE.md                → Completed tasks
+│   ├── DONE.md                → Completed tasks
+│   └── TROUBLESHOOTING.md     → Known deployment issues and recovery steps
 │
-├── PROJECT_README.md          → Submission entry doc
-├── PROJECT_STRUCTURE.md       → Submission structure doc
+├── PROJECT_README.md          → Symlink → PROJECT_DOCS/PROJECT_README.md (required at root for grader)
+├── PROJECT_STRUCTURE.md       → Symlink → PROJECT_DOCS/PROJECT_STRUCTURE.md (required at root for grader)
 ├── .vault_pass                → Vault password file (git-ignored, never committed)
+├── pe2.png                    → Assignment image asset
 └── .gitignore
 ```
 

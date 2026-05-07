@@ -141,11 +141,12 @@ Implementation order: storage → backend → frontend → extras
 ## VERIFICATION
 
 - [ ] Full deploy from clean state — single Ansible command, no manual steps
-- [ ] Idempotency — second run: zero changed, zero restarts (seed tasks now `changed_when: false`)
+- [ ] Idempotency — second run: zero changed, zero restarts (seed tasks `changed_when: false`)
 - [ ] Tier-specific redeploy — `--limit frontend/backend/storage`
 - [ ] Health checks — all three tiers respond correctly
 - [ ] Persisted-state proof — data survives full redeploy
 - [ ] Demo readiness — all graded items demonstrable
+- [ ] Root-level symlinks verified: `PROJECT_README.md` → `PROJECT_DOCS/PROJECT_README.md`, `PROJECT_STRUCTURE.md` → `PROJECT_DOCS/PROJECT_STRUCTURE.md`
 
 ---
 
