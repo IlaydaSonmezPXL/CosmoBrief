@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import EditorialShell from "../components/EditorialShell";
+import { useAuth } from "../context/AuthContext";
 import { getArticle, ArticleDetail as ArticleDetailType } from "../api/articles";
 import {
   requestExplanation,
@@ -36,6 +37,8 @@ export default function ArticleDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const articleId = Number(id);
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
 
   const [article, setArticle] = useState<ArticleDetailType | null>(null);
   const [loadingArticle, setLoadingArticle] = useState(true);
@@ -188,91 +191,95 @@ export default function ArticleDetail() {
 
         <hr className="ed-divider" />
 
-        {/* AI Briefing section */}
-        <div className="ed-briefing-label">AI Briefing</div>
+        {/* AI Briefing section — admin only */}
+        {isAdmin ? (
+          <>
+            <div className="ed-briefing-label">AI Briefing</div>
 
-        <div className="ed-mode-bar">
-          {MODES.map(({ key, label }) => {
-            const status = article.explanations[key];
-            const badge = status?.available
-              ? status.needs_regeneration ? " ↻" : " ✓"
-              : "";
-            return (
-              <button
-                key={key}
-                className={`ed-mode-btn${activeMode === key ? " active" : ""}`}
-                onClick={() => { void handleExplain(key); }}
-              >
-                {label}{badge}
-              </button>
-            );
-          })}
-        </div>
-
-        {loadingExplanation && (
-          <p className="ed-loading-text">Generating explanation…</p>
-        )}
-        {explainError && (
-          <p className="ed-error-text">{explainError}</p>
-        )}
-
-        {explanation && !loadingExplanation && (
-          <div className="ed-explanation">
-            <div className="ed-explanation-meta">
-              v{explanation.version} · {new Date(explanation.generated_at).toLocaleString()} · {explanation.source}
-            </div>
-            <p className="ed-explanation-text">{explanation.text}</p>
-            <div className="ed-explanation-actions">
-              {explanation.rating ? (
-                <>
-                  <span className="ed-rating-display">
-                    Rated {explanation.rating === "up" ? "👍" : "👎"}
-                  </span>
-                  {explanation.rating === "down" && (
-                    <button
-                      className="ed-action-ghost"
-                      onClick={() => { void handleExplain(activeMode!); }}
-                    >
-                      Regenerate
-                    </button>
-                  )}
-                </>
-              ) : (
-                <>
-                  <button className="ed-action-btn" onClick={() => { void handleRate("up"); }}>
-                    👍
+            <div className="ed-mode-bar">
+              {MODES.map(({ key, label }) => {
+                const status = article.explanations[key];
+                const badge = status?.available
+                  ? status.needs_regeneration ? " ↻" : " ✓"
+                  : "";
+                return (
+                  <button
+                    key={key}
+                    className={`ed-mode-btn${activeMode === key ? " active" : ""}`}
+                    onClick={() => { void handleExplain(key); }}
+                  >
+                    {label}{badge}
                   </button>
-                  <button className="ed-action-btn" onClick={() => { void handleRate("down"); }}>
-                    👎
-                  </button>
-                </>
-              )}
-              <button
-                className="ed-action-ghost"
-                onClick={() => { void handleShowHistory(); }}
-                style={{ marginLeft: "auto" }}
-              >
-                {showHistory ? "Hide history" : "History"}
-              </button>
+                );
+              })}
             </div>
-          </div>
-        )}
 
-        {showHistory && history && (
-          <div className="ed-history">
-            <div className="ed-history-title">Version history</div>
-            {history.map((v) => (
-              <div key={v.version} className="ed-history-item">
-                <div className="ed-history-item-meta">
-                  v{v.version} · {new Date(v.generated_at).toLocaleString()}
-                  {v.rating && ` · ${v.rating === "up" ? "👍" : "👎"}`}
-                  {v.needs_regeneration && " · needs regeneration"}
+            {loadingExplanation && (
+              <p className="ed-loading-text">Generating explanation…</p>
+            )}
+            {explainError && (
+              <p className="ed-error-text">{explainError}</p>
+            )}
+
+            {explanation && !loadingExplanation && (
+              <div className="ed-explanation">
+                <div className="ed-explanation-meta">
+                  v{explanation.version} · {new Date(explanation.generated_at).toLocaleString()} · {explanation.source}
                 </div>
-                <p className="ed-history-item-text">{v.text}</p>
+                <p className="ed-explanation-text">{explanation.text}</p>
+                <div className="ed-explanation-actions">
+                  {explanation.rating ? (
+                    <>
+                      <span className="ed-rating-display">
+                        Rated {explanation.rating === "up" ? "👍" : "👎"}
+                      </span>
+                      {explanation.rating === "down" && (
+                        <button
+                          className="ed-action-ghost"
+                          onClick={() => { void handleExplain(activeMode!); }}
+                        >
+                          Regenerate
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <button className="ed-action-btn" onClick={() => { void handleRate("up"); }}>
+                        👍
+                      </button>
+                      <button className="ed-action-btn" onClick={() => { void handleRate("down"); }}>
+                        👎
+                      </button>
+                    </>
+                  )}
+                  <button
+                    className="ed-action-ghost"
+                    onClick={() => { void handleShowHistory(); }}
+                    style={{ marginLeft: "auto" }}
+                  >
+                    {showHistory ? "Hide history" : "History"}
+                  </button>
+                </div>
               </div>
-            ))}
-          </div>
-        )}
+            )}
+
+            {showHistory && history && (
+              <div className="ed-history">
+                <div className="ed-history-title">Version history</div>
+                {history.map((v) => (
+                  <div key={v.version} className="ed-history-item">
+                    <div className="ed-history-item-meta">
+                      v{v.version} · {new Date(v.generated_at).toLocaleString()}
+                      {v.rating && ` · ${v.rating === "up" ? "👍" : "👎"}`}
+                      {v.needs_regeneration && " · needs regeneration"}
+                    </div>
+                    <p className="ed-history-item-text">{v.text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        ) : null}
         </div>
       </div>
     </EditorialShell>

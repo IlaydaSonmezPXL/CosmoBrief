@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
-from app.dependencies import get_current_user, http_error
+from app.dependencies import get_current_user, require_admin, http_error
 from app.models.article_cache import ArticleCache
 from app.models.explanation import Explanation
 from app.schemas.explanation import (
@@ -26,7 +26,7 @@ async def create_explanation(
     payload: ExplanationRequest,
     response: Response,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(require_admin),
 ) -> ExplanationResponse:
     article = await db.get(ArticleCache, article_id)
     if not article:
