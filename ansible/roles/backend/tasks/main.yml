@@ -26,6 +26,7 @@
       - openssh-server
     state: latest
   notify: Restart sshd
+  when: ansible_distribution != "Amazon"
 
 - name: Ensure application directory exists
   file:
@@ -53,7 +54,7 @@
     chdir: "{{ playbook_dir }}/../backend"
   delegate_to: localhost
   become: false
-  changed_when: true
+  changed_when: false
 
 - name: Transfer backend archive
   copy:

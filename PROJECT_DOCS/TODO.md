@@ -150,6 +150,17 @@ Implementation order: storage → backend → frontend → extras
 
 ---
 
+## COMPLETED THIS SESSION (2026-05-15) — idempotency + guard fixes + wordle bug
+
+- [x] `backend/tasks/main.yml`: `changed_when: true` → `changed_when: false` on tar archive task — idempotency fix (change detection delegated to subsequent `copy` checksum task)
+- [x] `frontend/tasks/main.yml`: added `when: ansible_distribution != "Amazon"` to `Keep openssh in sync` and `Allow nginx to connect to upstream backend (SELinux)` tasks (guards were documented but missing)
+- [x] `backend/tasks/main.yml`: added `when: ansible_distribution != "Amazon"` to `Keep openssh in sync` task (guard was documented but missing)
+- [x] `PROJECT_README.md`: updated tar task justification in `command`/`shell` table to reflect `changed_when: false` (not `true`)
+- [x] Wordle spoiler fix (`frontend/src/pages/Wordle.tsx`): past puzzles archive now starts from yesterday when game is not yet over (`offset = gameOver ? i : i + 1`)
+- [x] Full AWS redeploy verified: all three tiers ok, second run idempotent (0 changed, 0 restarts)
+
+---
+
 ## COMPLETED THIS SESSION (2026-05-05) — requirements review pass
 
 - [x] Duplicate group_vars fixed: `db_name`/`db_user`/`pg_port` removed from `storage.yml` (kept in `all.yml`)

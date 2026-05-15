@@ -17,6 +17,7 @@
       - openssh-server
     state: latest
   notify: Restart sshd
+  when: ansible_distribution != "Amazon"
 
 # Build runs on the Ansible control host (delegate_to: localhost).
 # Node.js must be installed locally. npm ci and npm run build have no
@@ -78,6 +79,7 @@
     name: httpd_can_network_connect
     state: yes
     persistent: yes
+  when: ansible_distribution != "Amazon"
 
 - name: Open HTTP port in firewalld
   ansible.posix.firewalld:

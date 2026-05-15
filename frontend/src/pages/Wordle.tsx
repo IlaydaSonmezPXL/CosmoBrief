@@ -396,8 +396,9 @@ export default function Wordle() {
   const statusClass = gameOver ? (won ? "won" : "lost") : "open";
   const pastPuzzles = user && words.length > 0
     ? Array.from({ length: 5 }, (_, i) => {
+      const offset = gameOver ? i : i + 1;
       const d = new Date();
-      d.setDate(d.getDate() - i);
+      d.setDate(d.getDate() - offset);
       const key = dateKey(d);
       const dayIndex = dayIndexFor(d);
       const idx = ((dayIndex % words.length) + words.length) % words.length;
