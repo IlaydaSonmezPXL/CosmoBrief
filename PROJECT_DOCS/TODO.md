@@ -150,6 +150,16 @@ Implementation order: storage → backend → frontend → extras
 
 ---
 
+## COMPLETED THIS SESSION (2026-05-17) — unarchive idempotency fix + AWS verification
+
+- [x] `backend/tasks/main.yml`: gated `unarchive` on `when: archive_copy.changed` — copy module checksum detects real source changes; without the gate, `unarchive remote_src: yes` always reported changed regardless of content (NFR-IDP-02 violation)
+- [x] `backend/tasks/main.yml`: added `extra_opts: ["--no-same-permissions"]` to unarchive — prevents archive root dir from overriding `app_dir` mode to 0775 on every run
+- [x] `backend/tasks/main.yml`: added `Ensure application directory permissions` task after extraction to assert mode 0755 on every run (idempotent)
+- [x] `PROJECT_README.md`: updated tar/unarchive justification to document the `when: archive_copy.changed` gate mechanism
+- [x] AWS idempotency verified: second full deploy run → `backend-host: changed=0`, `frontend-host: changed=0`, `storage-host: changed=0`
+
+---
+
 ## COMPLETED THIS SESSION (2026-05-15) — idempotency + guard fixes + wordle bug
 
 - [x] `backend/tasks/main.yml`: `changed_when: true` → `changed_when: false` on tar archive task — idempotency fix (change detection delegated to subsequent `copy` checksum task)
