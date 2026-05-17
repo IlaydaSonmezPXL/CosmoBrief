@@ -44,3 +44,6 @@ ansible/vault.yml.bak
 # OS
 .DS_Store
 Thumbs.db
+
+# Demo notes
+PROJECT_DOCS/DEMO_SCRIPT.md
