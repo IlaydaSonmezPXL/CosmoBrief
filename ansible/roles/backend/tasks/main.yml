@@ -61,6 +61,7 @@
     src: /tmp/cosmobrief-backend.tar.gz
     dest: /tmp/cosmobrief-backend.tar.gz
     mode: "0644"
+  register: archive_copy
 
 - name: Extract backend source code
   unarchive:
@@ -69,7 +70,18 @@
     remote_src: yes
     owner: "{{ app_user }}"
     group: "{{ app_group }}"
+    extra_opts:
+      - "--no-same-permissions"
+  when: archive_copy.changed
   notify: Restart cosmobrief
+
+- name: Ensure application directory permissions
+  file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0755"
 
 - name: Render backend environment file
   template:

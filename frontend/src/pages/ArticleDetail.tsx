@@ -39,7 +39,6 @@ export default function ArticleDetail() {
   const articleId = Number(id);
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-
   const [article, setArticle] = useState<ArticleDetailType | null>(null);
   const [loadingArticle, setLoadingArticle] = useState(true);
   const [error, setError] = useState("");
