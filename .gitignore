@@ -11,9 +11,11 @@ pe2_state.env
 # Secrets — never commit
 .vault_pass
 *.vault_pass
+.env
 
 # Backend
 backend/venv/
+backend/venv2/
 backend/.env
 backend/**/__pycache__/
 backend/**/*.pyc
