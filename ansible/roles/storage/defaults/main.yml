@@ -1,5 +1,0 @@
----
-pg_data_dir: /var/lib/pgsql/16/data
-pg_service_name: postgresql-16
-pg_bin_dir: /usr/pgsql-16/bin
-pg_setup_bin: /usr/pgsql-16/bin/postgresql-16-setup

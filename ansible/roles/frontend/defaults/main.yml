@@ -1,3 +1,0 @@
----
-web_root: /var/www/cosmobrief
-nginx_service_name: nginx

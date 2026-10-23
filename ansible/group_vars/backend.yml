@@ -1,5 +1,0 @@
----
-python_version: "3.11"
-app_dir: /opt/cosmobrief
-# Formula: (vCPUs * 2) + 1. Vagrant VMs have 2 CPUs → 5 workers.
-gunicorn_workers: 5

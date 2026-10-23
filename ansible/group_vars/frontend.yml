@@ -1,3 +1,0 @@
----
-# Default 80 (AWS). For Vagrant, pass -e "frontend_http_port=8080" at deploy time.
-frontend_http_port: 80

@@ -1,6 +1,0 @@
-bind = "0.0.0.0:{{ backend_port }}"
-workers = {{ gunicorn_workers }}
-worker_class = "uvicorn.workers.UvicornWorker"
-accesslog = "{{ log_dir }}/access.log"
-errorlog = "{{ log_dir }}/error.log"
-loglevel = "info"

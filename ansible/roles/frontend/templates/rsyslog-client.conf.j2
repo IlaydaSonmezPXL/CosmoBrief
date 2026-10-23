@@ -1,4 +1,0 @@
-# rsyslog forwarding — frontend VM → storage VM central log receiver
-# All local logs forwarded via TCP to the storage VM on port 514.
-
-*.* @@{{ hostvars[groups['storage'][0]]['ansible_host'] }}:514
