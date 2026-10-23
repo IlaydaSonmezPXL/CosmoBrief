@@ -87,11 +87,15 @@ async def refresh_cache(session: AsyncSession) -> None:
         return
 
     records: list[dict[str, Any]] = []
+    seen_ids: set[int] = set()
     for article in raw_articles:
         article_id = article.get("id")
         title = article.get("title")
         if article_id is None or title is None:
             continue
+        if article_id in seen_ids:
+            continue
+        seen_ids.add(article_id)
         records.append(
             {
                 "article_id": article_id,
