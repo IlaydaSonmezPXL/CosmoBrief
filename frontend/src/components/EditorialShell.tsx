@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { listArticles } from "../api/articles";
@@ -14,11 +14,19 @@ const TABS = [
   { to: "/admin", label: "Admin", adminOnly: true },
 ];
 
-interface EditorialShellProps {
-  children: React.ReactNode;
+interface ShellSections {
+  items: Array<{ id: string; label: string }>;
+  active: string;
+  onSelect: (id: string) => void;
 }
 
-export default function EditorialShell({ children }: EditorialShellProps) {
+interface EditorialShellProps {
+  children: React.ReactNode;
+  // When set, the Edition tab is replaced by these in-page section links.
+  sections?: ShellSections;
+}
+
+export default function EditorialShell({ children, sections }: EditorialShellProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [now, setNow] = useState(() => new Date());
@@ -63,7 +71,8 @@ export default function EditorialShell({ children }: EditorialShellProps) {
 
   const dayName = now.toLocaleDateString("en-US", { weekday: "long" });
   const dateStr = now.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-  const minutesAgo = lastUpdated ? Math.floor((now.getTime() - lastUpdated.getTime()) / 60_000) : null;
+  // `now` ticks once a minute, so it can lag behind lastUpdated; clamp to avoid "-1m ago".
+  const minutesAgo = lastUpdated ? Math.max(0, Math.floor((now.getTime() - lastUpdated.getTime()) / 60_000)) : null;
   const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86_400_000);
   const stardate = `${now.getFullYear()}.${String(dayOfYear).padStart(3, "0")}`;
   const utcTime = now.toUTCString().slice(17, 22) + " UTC";
@@ -110,14 +119,6 @@ export default function EditorialShell({ children }: EditorialShellProps) {
         </div>
         <div className="cb-brand">Cosmo<span className="sep">·</span>Brief</div>
         <div className="cb-brand-actions">
-          {user && (
-            <>
-              <Link to="/browse" className="cb-chip">Browse</Link>
-              <Link to="/reading-map" className="cb-chip">Map</Link>
-              <Link to="/wordle" className="cb-chip">Cipher</Link>
-              {user.role === "admin" && <Link to="/admin" className="cb-chip">Admin</Link>}
-            </>
-          )}
           {user ? (
             <div className="brand-user-wrap">
               <UserMenu />
@@ -133,11 +134,26 @@ export default function EditorialShell({ children }: EditorialShellProps) {
 
       {user && (
         <nav className="cb-tabs">
-          {TABS.filter((t) => !t.adminOnly || user.role === "admin").map(({ to, label, end }) => (
-            <NavLink key={to} to={to} end={end} className={({ isActive }) => (isActive ? "active" : "")}>
-              {label}
-            </NavLink>
-          ))}
+          {TABS.filter((t) => !t.adminOnly || user.role === "admin").map(({ to, label, end }) =>
+            sections && to === "/" ? (
+              <Fragment key={to}>
+                {sections.items.map((s) => (
+                  <button
+                    key={s.id}
+                    className={sections.active === s.id ? "active" : ""}
+                    onClick={() => sections.onSelect(s.id)}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+                <span className="divider" />
+              </Fragment>
+            ) : (
+              <NavLink key={to} to={to} end={end} className={({ isActive }) => (isActive ? "active" : "")}>
+                {label}
+              </NavLink>
+            )
+          )}
           <span className="spacer" />
           <span className="live">
             <span className="cb-live-dot" />

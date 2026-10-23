@@ -1856,42 +1856,6 @@ html { scroll-behavior: smooth; }
 .editorial .brand-user-wrap .user-menu-caret { display: none; }
 .editorial .brand-user-wrap .user-avatar { font-size: 0.9rem; font-weight: 700; }
 
-/* ── Section nav (sticky) ─────────────────────── */
-.section-nav {
-  background: var(--ed-ink);
-  color: var(--ed-paper);
-  border-bottom: 1px solid var(--ed-rule);
-  padding: 0.7rem 2.5rem;
-  display: flex;
-  gap: 1.7rem;
-  align-items: center;
-  font-family: var(--ed-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  position: sticky;
-  top: var(--tabnav-height, 0px);
-  z-index: 50;
-}
-.section-nav button {
-  color: var(--ed-paper-dim);
-  cursor: pointer;
-  transition: color 0.12s;
-  padding: 0.2rem 0;
-  border: none;
-  border-bottom: 1px solid transparent;
-  background: none;
-  font: inherit;
-  letter-spacing: inherit;
-  text-transform: inherit;
-}
-.section-nav button:hover,
-.section-nav button.active { color: var(--ed-paper); border-bottom-color: var(--ed-accent); }
-.section-nav-spacer { flex: 1; }
-.section-nav-live { display: flex; align-items: center; gap: 0.45rem; color: var(--ed-paper-dim); font-size: 0.68rem; }
-.live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ed-accent); animation: ed-pulse 2.4s ease-in-out infinite; flex-shrink: 0; }
-@keyframes ed-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.3); } }
-
 /* ── Hero ─────────────────────────────────────── */
 .hero {
   position: relative;
@@ -2154,7 +2118,7 @@ html { scroll-behavior: smooth; }
   .hero-side { display: none; }
   .ed-foot { grid-template-columns: 1fr 1fr; }
   .ed-section { padding: 3rem 1.5rem; }
-  .masthead, .brand-bar, .section-nav { padding-left: 1.5rem; padding-right: 1.5rem; }
+  .masthead, .brand-bar { padding-left: 1.5rem; padding-right: 1.5rem; }
   .hero-content { padding: 0 1.5rem 2.5rem; }
   .brand-bar { grid-template-columns: 1fr; text-align: center; }
   .brand-actions { justify-content: center; }
@@ -2165,7 +2129,6 @@ html { scroll-behavior: smooth; }
   .wire-item { grid-template-columns: 70px 1fr; }
   .wire-time { display: none; }
   .ed-foot { grid-template-columns: 1fr; }
-  .section-nav { gap: 1rem; font-size: 0.62rem; overflow-x: auto; }
 }
 
 /* ══════════════════════════════════════════════════

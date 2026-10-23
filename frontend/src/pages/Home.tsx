@@ -68,12 +68,11 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 const SECTIONS = [
-  { id: "top",    label: "The Edition" },
+  { id: "top",    label: "Edition" },
   { id: "sky",    label: "Tonight's Sky" },
   { id: "long",   label: "Long Reads" },
   { id: "wire",   label: "The Wire" },
   { id: "orbit",  label: "Reading Orbit" },
-  { id: "wordle", label: "Daily Cipher" },
 ];
 
 const LS_LOC_KEY = "cosmo_location";
@@ -332,20 +331,7 @@ export default function Home() {
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <EditorialShell>
-      {/* ── Section nav ── */}
-      <nav className="section-nav">
-        {SECTIONS.map((s) => (
-          <button
-            key={s.id}
-            className={activeSection === s.id ? "active" : ""}
-            onClick={() => scrollToSection(s.id)}
-          >
-            {s.label}
-          </button>
-        ))}
-      </nav>
-
+    <EditorialShell sections={{ items: SECTIONS, active: activeSection, onSelect: scrollToSection }}>
       {/* ── Hero ── */}
       {lead ? (
         <section id="top" className="hero">

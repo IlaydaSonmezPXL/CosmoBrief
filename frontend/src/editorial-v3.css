@@ -191,6 +191,7 @@
   color: var(--paper); border-bottom-color: var(--accent);
 }
 .cb-tabs .spacer { flex: 1; }
+.cb-tabs .divider { width: 1px; height: 1em; background: var(--paper-dim); opacity: 0.35; }
 .cb-tabs .live { display: flex; align-items: center; gap: 0.45rem; color: var(--paper-dim); }
 .cb-live-dot {
   width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
@@ -927,7 +928,8 @@
   .cb-brand-meta { display: none; }
   .cb-brand { font-size: 3.2rem; }
   .cb-brand-actions { justify-content: center; }
-  .cb-tabs { padding: 0.7rem 1rem; gap: 1rem; font-size: 0.66rem; }
+  .cb-tabs { padding: 0.7rem 1rem; gap: 1rem; font-size: 0.66rem; overflow-x: auto; white-space: nowrap; }
+  .cb-tabs > * { flex-shrink: 0; }
   .browse-row { grid-template-columns: 30px 1fr; }
   .browse-row-thumb { display: none; }
   .map-head { grid-template-columns: 1fr; }
