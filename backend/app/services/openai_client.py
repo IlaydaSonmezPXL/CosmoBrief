@@ -26,7 +26,15 @@ class OpenAIUsage:
     completion_tokens: Optional[int]
 
 
-client = AsyncOpenAI(api_key=settings.openai_api_key)
+_client: Optional[AsyncOpenAI] = None
+
+
+def _get_client() -> AsyncOpenAI:
+    # Created lazily so the app can start without OPENAI_API_KEY.
+    global _client
+    if _client is None:
+        _client = AsyncOpenAI(api_key=settings.openai_api_key)
+    return _client
 
 
 async def generate_explanation(title: str, summary: str | None, mode: str) -> tuple[str, str, OpenAIUsage]:
@@ -41,7 +49,7 @@ async def generate_explanation(title: str, summary: str | None, mode: str) -> tu
     )
     user_content = f"Title: {title}\nSummary: {summary or 'No summary provided.'}"
 
-    response = await client.beta.chat.completions.parse(
+    response = await _get_client().beta.chat.completions.parse(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": system_prompt},
