@@ -62,8 +62,8 @@ async def admin_stats(
         total_users=total_users,
         total_explanations=total_explanations,
         explanations_by_mode=explanations_by_mode,
-        total_prompt_tokens=int(total_prompt_tokens),
-        total_completion_tokens=int(total_completion_tokens),
+        total_prompt_tokens=int(total_prompt_tokens or 0),
+        total_completion_tokens=int(total_completion_tokens or 0),
         top_topics=top_topics,
         ratings={"thumbs_up": int(thumbs_up), "thumbs_down": int(thumbs_down)},
     )
